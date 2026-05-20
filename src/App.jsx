@@ -277,7 +277,7 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
           ))}
         </div>
       </Field>
-      <div style={{display:"flex",gap:10,marginTop:20}}>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20}}>
         <SpotifyBtn fullWidth onClick={()=>copy("master")}>
           {copied==="master"?"Copied ✓":"Copy Master Prompt"}
         </SpotifyBtn>
