@@ -186,6 +186,118 @@ function ImportModal({onClose,onImport}){
   );
 }
 
+function PromptModal({onClose}){
+  const[topic,setTopic]=useState("");
+  const[audience,setAudience]=useState("");
+  const[difficulty,setDifficulty]=useState(null);
+  const[copied,setCopied]=useState(null);
+
+  const diffNote={
+    beginner:"Focus on difficulty 1 (Intro) cards. Use everyday language and analogies. Define every term you introduce.",
+    intermediate:"Mix of difficulty 1–2. Assume basic domain familiarity but no deep expertise.",
+    expert:"Difficulty 2–3. Skip the basics. Go deep on mechanisms, tradeoffs, and edge cases.",
+  };
+
+  const buildMaster=()=>{
+    const t=topic.trim()||"[YOUR TOPIC]";
+    const a=audience.trim()?`\nAUDIENCE: ${audience.trim()}`:"";
+    const d=difficulty?`\nDIFFICULTY: ${difficulty} — ${diffNote[difficulty]}`:"";
+    return `You are an expert curriculum designer creating content for a sequential card-based learning app.
+
+TOPIC: ${t}${a}${d}
+
+Design a carefully sequenced set of learning cards. The order IS the curriculum — later cards assume the user understood earlier ones.
+
+CARD RULES:
+- One atomic idea per card. If you want to say two things, make two cards.
+- body: 2–4 sentences. Plain language. Define any jargon you introduce.
+- context: The deeper "so what" — why it matters, how it connects, the underlying mechanism.
+- Cards must build on each other. Never reference a concept before introducing it.
+- tags: reflect concept type e.g. "foundational", "mechanism", "tradeoff", "example".
+- difficulty: 1 = Intro, 2 = Core, 3 = Advanced.
+
+OUTPUT: Raw JSON only. No markdown, no code fences, no explanation before or after.
+
+{
+  "id": "topic-abc123",
+  "title": "${t}",
+  "type": "topic",
+  "path": [],
+  "cards": [
+    {
+      "id": "card-1",
+      "order": 1,
+      "title": "Concept name (short noun-phrase)",
+      "body": "2–4 sentences. One idea only. Plain language.",
+      "context": "Deeper why or how. What a practitioner would add.",
+      "tags": ["foundational"],
+      "difficulty": 1
+    }
+  ]
+}`;
+  };
+
+  const buildSimple=()=>{
+    const t=topic.trim()||"[YOUR TOPIC]";
+    const a=audience.trim()?` for ${audience.trim()}`:"";
+    const d=difficulty?` Difficulty focus: ${difficulty}.`:"";
+    return `You are a curriculum designer. Break "${t}"${a} into a sequential card set.${d}
+Output ONLY valid JSON: { "id": "topic-abc", "title": "${t}", "type": "topic", "path": [], "cards": [{ "id": "card-1", "order": 1, "title": "...", "body": "2–4 sentences, one idea only.", "context": "deeper why/how", "tags": ["foundational"], "difficulty": 1 }] }
+Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Core 3=Advanced. No markdown. Raw JSON only.`;
+  };
+
+  const copy=(type)=>{
+    const text=type==="master"?buildMaster():buildSimple();
+    navigator.clipboard.writeText(text).then(()=>{hap.success();snd.reveal();setCopied(type);setTimeout(()=>setCopied(null),2200);}).catch(()=>{hap.error();});
+  };
+
+  const steps=[
+    ["1","Fill in the fields above (Topic is all you need)"],
+    ["2","Copy a prompt — Master for better quality, Simple for quick iteration"],
+    ["3","Paste it into Claude, ChatGPT, Gemini, or any LLM and run it"],
+    ["4","Copy the entire JSON block the LLM outputs"],
+    ["5","Close this — tap Edit Library → Import JSON → paste → Import"],
+  ];
+
+  return(
+    <Modal title="Generate with AI" onClose={onClose} width={560}>
+      <Field label="Topic">
+        <input style={inpStyle} value={topic} onChange={e=>setTopic(e.target.value)} placeholder='e.g. How transformers work' autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+      </Field>
+      <Field label="Audience (optional)">
+        <input style={inpStyle} value={audience} onChange={e=>setAudience(e.target.value)} placeholder='e.g. software engineers with no ML background' onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+      </Field>
+      <Field label="Difficulty (optional)">
+        <div style={{display:"flex",gap:8}}>
+          {[["Beginner","beginner",S.d1],["Intermediate","intermediate",S.d2],["Expert","expert",S.d3]].map(([label,val,color])=>(
+            <button key={val} onClick={()=>{hap.light();setDifficulty(difficulty===val?null:val);}}
+              style={{flex:1,padding:"10px 0",borderRadius:4,border:`1px solid ${difficulty===val?color:S.border}`,background:difficulty===val?`${color}22`:"transparent",color:difficulty===val?color:S.subdued,cursor:"pointer",fontSize:13,fontFamily:F,fontWeight:700,transition:"all 0.15s"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <div style={{display:"flex",gap:10,marginTop:20}}>
+        <SpotifyBtn fullWidth onClick={()=>copy("master")}>
+          {copied==="master"?"Copied ✓":"Copy Master Prompt"}
+        </SpotifyBtn>
+        <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
+          {copied==="simple"?"Copied ✓":"Copy Simple Prompt"}
+        </SpotifyBtn>
+      </div>
+      <div style={{marginTop:20,background:S.card,borderRadius:6,padding:"16px 18px"}}>
+        <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>How to use</div>
+        {steps.map(([n,text])=>(
+          <div key={n} style={{display:"flex",gap:12,marginBottom:10,alignItems:"flex-start"}}>
+            <div style={{width:20,height:20,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:S.green,flexShrink:0,fontFamily:F,marginTop:1}}>{n}</div>
+            <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>{text}</div>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
 function CardSetManager({topic,onSave,onClose}){
   const[cards,setCards]=useState([...topic.cards]);
   const[editing,setEditing]=useState(null);
@@ -294,7 +406,8 @@ function LibraryEditor({library,onSave,onClose}){
     <>
       <Modal title="Your Library" onClose={onClose} width={640}>
         <EditorTree node={tree} isRoot onAddDir={id=>setModal({type:"dir",pid:id})} onAddTopic={id=>setModal({type:"topic",pid:id})} onEdit={n=>setModal({type:n.type==="directory"?"dir":"topic",node:n})} onDelete={deleteNode} onCards={n=>setModal({type:"cards",node:n})}/>
-        <div style={{display:"flex",gap:10,marginTop:24,paddingTop:16,borderTop:`1px solid ${S.border}`}}>
+        <div style={{display:"flex",gap:10,marginTop:24,paddingTop:16,borderTop:`1px solid ${S.border}`,flexWrap:"wrap"}}>
+          <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"prompt"})}>Generate prompt</SpotifyBtn>
           <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"import"})}>Import JSON</SpotifyBtn>
           <SpotifyBtn onClick={()=>{hap.success();onSave(tree);onClose();}}>Save library</SpotifyBtn>
         </div>
@@ -305,6 +418,7 @@ function LibraryEditor({library,onSave,onClose}){
       {modal?.type==="topic"&&modal.node&&<TopicModal existing={modal.node} onSave={t=>renameNode(modal.node.id,t)} onClose={()=>setModal(null)}/>}
       {modal?.type==="cards"&&<CardSetManager topic={modal.node} onSave={saveCards} onClose={()=>setModal(null)}/>}
       {modal?.type==="import"&&<ImportModal onClose={()=>setModal(null)} onImport={handleImport}/>}
+      {modal?.type==="prompt"&&<PromptModal onClose={()=>setModal(null)}/>}
     </>
   );
 }
