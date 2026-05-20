@@ -1,0 +1,619 @@
+import { useState, useRef, useEffect, useCallback } from "react";
+
+const DEMO_DATA = {
+  id:"root",title:"My Library",type:"directory",
+  children:[{
+    id:"nn",title:"Neural Networks",type:"directory",
+    children:[
+      {id:"nn-basics",title:"Fundamentals",type:"topic",path:["Neural Networks"],cards:[
+        {id:"nn-1",order:1,title:"What is a Neural Network?",body:"A neural network is a system of interconnected nodes inspired by biological neurons. Each node receives inputs, applies a weight, and passes a signal forward.",context:"Think of it like a series of filters — each layer extracts increasingly abstract patterns. A photo → edges → shapes → faces.",tags:["foundational"],difficulty:1},
+        {id:"nn-2",order:2,title:"Neurons & Weights",body:"Each neuron multiplies its input by a weight and adds a bias. The result passes through an activation function that decides whether the neuron fires.",context:"Weights are the memory of a network. Initially random, they get refined through training. A weight of 0 means ignore this input.",tags:["foundational"],difficulty:1},
+        {id:"nn-3",order:3,title:"Activation Functions",body:"Activation functions introduce non-linearity. Without them, a deep network collapses into a single linear transformation. Common ones: ReLU, Sigmoid, Tanh.",context:"ReLU is the most popular: output = max(0, x). Simple, fast, avoids the vanishing gradient problem.",tags:["core-concept"],difficulty:2},
+        {id:"nn-4",order:4,title:"Layers: Input, Hidden, Output",body:"Networks have layers: Input (raw data), Hidden (learned representations), Output (predictions). Depth = number of hidden layers.",context:"More layers = more capacity to learn complex patterns. But more layers means harder to train.",tags:["architecture"],difficulty:2},
+        {id:"nn-5",order:5,title:"Forward Pass",body:"During a forward pass, data flows left to right through the network. Each layer transforms the data using weights and activation functions.",context:"The forward pass is inference. Training consists of millions of forward passes, each followed by a backward pass.",tags:["mechanism"],difficulty:2},
+      ]},
+      {id:"backprop",title:"Backpropagation",type:"topic",path:["Neural Networks"],cards:[
+        {id:"bp-1",order:1,title:"The Learning Signal",body:"After a forward pass, we compare the prediction to the true answer using a loss function. The loss is a single number we want to minimize.",context:"Loss functions: MSE for regression, cross-entropy for classification.",tags:["foundational"],difficulty:2},
+        {id:"bp-2",order:2,title:"Gradients & Chain Rule",body:"Backpropagation computes how much each weight contributed to the error using the chain rule. Error signals flow backward through the network.",context:"The gradient points toward steepest increase of loss. We go opposite — gradient descent.",tags:["mechanism"],difficulty:3},
+        {id:"bp-3",order:3,title:"Gradient Descent",body:"We update each weight by subtracting a fraction of its gradient. That fraction is the learning rate — a hyperparameter controlling step size.",context:"Too high: weights overshoot, training diverges. Too low: painfully slow.",tags:["optimization"],difficulty:3},
+      ]}
+    ]
+  }]
+};
+
+const S = {
+  bg:"#1c1208",surface:"#251a0a",elevated:"#2e200e",card:"#3a2912",cardHover:"#43301a",
+  green:"#c8761a",greenHover:"#e08920",
+  white:"#f5e6cc",subdued:"#a88b6a",faint:"#5c4530",
+  danger:"#b83222",border:"rgba(200,118,26,0.18)",
+  d1:"#7daa52",d2:"#c8761a",d3:"#b83222",
+};
+const F = "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', Helvetica, Arial, sans-serif";
+
+const uid = () => Math.random().toString(36).slice(2,9);
+
+function flattenTopics(node,path=[]){const o=[];if(node.type==="topic")o.push({...node,path:node.path||path});else if(node.children)node.children.forEach(c=>o.push(...flattenTopics(c,[...path,node.title])));return o;}
+function rebuildPaths(node,path=[]){if(node.type==="topic")return{...node,path};return{...node,children:(node.children||[]).map(c=>rebuildPaths(c,[...path,node.title]))};}
+function findAndUpdate(node,id,upd){if(node.id===id)return upd(node);if(!node.children)return node;return{...node,children:node.children.map(c=>findAndUpdate(c,id,upd))};}
+function findAndDelete(node,id){if(!node.children)return node;return{...node,children:node.children.filter(c=>c.id!==id).map(c=>findAndDelete(c,id))};}
+function insertInto(node,pid,child){if(node.id===pid)return{...node,children:[...(node.children||[]),child]};if(!node.children)return node;return{...node,children:node.children.map(c=>insertInto(c,pid,child))};}
+
+// ── STORAGE — localStorage for real browser ───────────────────────────────────
+const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",progress:"sl-prog",library:"sl-lib"};
+function lsLoad(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
+function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+// ── HAPTICS — real iOS haptics via navigator.vibrate ──────────────────────────
+const hap={
+  light:()=>{try{navigator.vibrate?.(25);}catch{}},
+  medium:()=>{try{navigator.vibrate?.(50);}catch{}},
+  success:()=>{try{navigator.vibrate?.([30,20,30]);}catch{}},
+  error:()=>{try{navigator.vibrate?.([60,30,60]);}catch{}}
+};
+
+function SpotifyBtn({children,onClick,variant="primary",size="md",fullWidth=false}){
+  const bg=variant==="primary"?S.green:variant==="secondary"?"transparent":S.elevated;
+  const col=variant==="primary"?"#1c1208":S.white;
+  const border=variant==="secondary"?`1px solid ${S.border}`:"none";
+  const pad=size==="sm"?"8px 16px":"14px 32px";
+  const fs=size==="sm"?13:14;
+  return(
+    <button onMouseDown={()=>{hap.medium();onClick&&onClick();}} onClick={()=>{onClick&&onClick();}}
+      style={{background:bg,color:col,border,borderRadius:500,padding:pad,fontFamily:F,fontSize:fs,fontWeight:700,letterSpacing:"0.05em",cursor:"pointer",width:fullWidth?"100%":"auto",transition:"transform 0.1s,background 0.1s",whiteSpace:"nowrap"}}
+      onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.04)";if(variant==="primary")e.currentTarget.style.background=S.greenHover;}}
+      onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";if(variant==="primary")e.currentTarget.style.background=S.green;}}
+    >{children}</button>
+  );
+}
+
+function Modal({title,onClose,children,width=480}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16,overflowY:"auto"}}>
+      <div style={{background:S.elevated,borderRadius:8,width:"100%",maxWidth:width,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 16px 64px rgba(0,0,0,0.8)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"24px 24px 16px",position:"sticky",top:0,background:S.elevated,zIndex:1}}>
+          <div style={{fontSize:20,fontWeight:700,color:S.white,fontFamily:F,letterSpacing:"-0.02em"}}>{title}</div>
+          <button onClick={()=>{hap.light();onClose();}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:22,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}>✕</button>
+        </div>
+        <div style={{padding:"0 24px 24px"}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Field({label,children}){
+  return(
+    <div style={{marginBottom:16}}>
+      <label style={{display:"block",fontSize:12,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8,fontFamily:F}}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const inpStyle={background:S.card,border:`1px solid ${S.border}`,borderRadius:4,color:S.white,fontSize:15,padding:"12px 16px",width:"100%",fontFamily:F,outline:"none",boxSizing:"border-box",transition:"border-color 0.2s"};
+
+function DirectoryModal({existing,onSave,onClose}){
+  const[t,setT]=useState(existing?.title||"");
+  return(
+    <Modal title={existing?"Edit folder":"New folder"} onClose={onClose}>
+      <Field label="Folder name"><input style={inpStyle} value={t} onChange={e=>setT(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <SpotifyBtn fullWidth onClick={()=>{if(t.trim()){hap.success();onSave(t.trim());}}}>{existing?"Save":"Create"}</SpotifyBtn>
+    </Modal>
+  );
+}
+
+function TopicModal({existing,onSave,onClose}){
+  const[t,setT]=useState(existing?.title||"");
+  return(
+    <Modal title={existing?"Edit topic":"New topic"} onClose={onClose}>
+      <Field label="Topic name"><input style={inpStyle} value={t} onChange={e=>setT(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <SpotifyBtn fullWidth onClick={()=>{if(t.trim()){hap.success();onSave(t.trim());}}}>{existing?"Save":"Create"}</SpotifyBtn>
+    </Modal>
+  );
+}
+
+function CardModal({card,onSave,onClose}){
+  const[title,setTitle]=useState(card?.title||"");
+  const[body,setBody]=useState(card?.body||"");
+  const[context,setContext]=useState(card?.context||"");
+  const[tags,setTags]=useState((card?.tags||[]).join(", "));
+  const[diff,setDiff]=useState(card?.difficulty||1);
+  const ta={...inpStyle,height:88,resize:"vertical"};
+  return(
+    <Modal title={card?.id?"Edit card":"New card"} onClose={onClose} width={560}>
+      <Field label="Title"><input style={inpStyle} value={title} onChange={e=>setTitle(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Body"><textarea style={ta} value={body} onChange={e=>setBody(e.target.value)} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Context (deep dive)"><textarea style={ta} value={context} onChange={e=>setContext(e.target.value)} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Tags (comma separated)"><input style={inpStyle} value={tags} onChange={e=>setTags(e.target.value)} placeholder="foundational, mechanism" onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Difficulty">
+        <div style={{display:"flex",gap:8}}>
+          {[["Intro",1,S.d1],["Core",2,S.d2],["Advanced",3,S.d3]].map(([l,d,c])=>(
+            <button key={d} onClick={()=>{hap.light();setDiff(d);}} style={{flex:1,padding:"10px 0",borderRadius:4,border:`1px solid ${diff===d?c:S.border}`,background:diff===d?`${c}22`:"transparent",color:diff===d?c:S.subdued,cursor:"pointer",fontSize:13,fontFamily:F,fontWeight:700,transition:"all 0.15s"}}>{l}</button>
+          ))}
+        </div>
+      </Field>
+      <SpotifyBtn fullWidth onClick={()=>{if(!title.trim()||!body.trim())return;hap.success();onSave({title:title.trim(),body:body.trim(),context:context.trim(),tags:tags.split(",").map(t=>t.trim()).filter(Boolean),difficulty:diff});}}>
+        {card?.id?"Save changes":"Add card"}
+      </SpotifyBtn>
+    </Modal>
+  );
+}
+
+function ImportModal({onClose,onImport}){
+  const[text,setText]=useState("");
+  const[err,setErr]=useState(null);
+  return(
+    <Modal title="Import JSON" onClose={onClose}>
+      <p style={{fontSize:14,color:S.subdued,marginBottom:16,fontFamily:F}}>Paste a topic object with a cards array.</p>
+      <textarea value={text} onChange={e=>setText(e.target.value)} style={{...inpStyle,height:180,resize:"vertical",fontFamily:"monospace",fontSize:12}} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+      {err&&<p style={{color:S.danger,fontSize:13,margin:"8px 0",fontFamily:F}}>{err}</p>}
+      <div style={{display:"flex",gap:10,marginTop:16}}>
+        <SpotifyBtn variant="ghost" onClick={onClose}>Cancel</SpotifyBtn>
+        <SpotifyBtn onClick={()=>{try{const d=JSON.parse(text);hap.success();onImport(d);onClose();}catch{hap.error();setErr("Invalid JSON. Check the format.");}}}>Import</SpotifyBtn>
+      </div>
+    </Modal>
+  );
+}
+
+function CardSetManager({topic,onSave,onClose}){
+  const[cards,setCards]=useState([...topic.cards]);
+  const[editing,setEditing]=useState(null);
+  const move=(i,dir)=>{const c=[...cards];const j=i+dir;if(j<0||j>=c.length)return;hap.light();[c[i],c[j]]=[c[j],c[i]];setCards(c.map((x,n)=>({...x,order:n+1})));};
+  const del=(id)=>{hap.medium();setCards(cards.filter(c=>c.id!==id).map((x,n)=>({...x,order:n+1})));};
+  const saveCard=(data)=>{
+    if(editing==="new")setCards(p=>[...p,{...data,id:`${topic.id}-${uid()}`,order:p.length+1}]);
+    else setCards(p=>p.map(c=>c.id===editing.id?{...c,...data}:c));
+    setEditing(null);
+  };
+  return(
+    <>
+      <Modal title={topic.title} onClose={onClose} width={600}>
+        <div style={{marginBottom:16}}><SpotifyBtn size="sm" onClick={()=>setEditing("new")}>+ Add card</SpotifyBtn></div>
+        <div style={{display:"flex",flexDirection:"column",gap:2,maxHeight:420,overflowY:"auto"}}>
+          {cards.map((c,i)=>(
+            <div key={c.id} style={{background:S.card,borderRadius:4,padding:"12px 14px",display:"flex",gap:10,alignItems:"center",transition:"background 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background=S.cardHover}
+              onMouseLeave={e=>e.currentTarget.style.background=S.card}>
+              <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                <button onClick={()=>move(i,-1)} disabled={i===0} style={{background:"none",border:"none",color:i===0?S.faint:S.subdued,cursor:i===0?"default":"pointer",fontSize:12,padding:"1px 4px",lineHeight:1}}>▲</button>
+                <button onClick={()=>move(i,1)} disabled={i===cards.length-1} style={{background:"none",border:"none",color:i===cards.length-1?S.faint:S.subdued,cursor:i===cards.length-1?"default":"pointer",fontSize:12,padding:"1px 4px",lineHeight:1}}>▼</button>
+              </div>
+              <div style={{width:28,height:28,borderRadius:4,background:c.difficulty===1?`${S.d1}22`:c.difficulty===2?`${S.d2}22`:`${S.d3}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:c.difficulty===1?S.d1:c.difficulty===2?S.d2:S.d3,flexShrink:0}}>{c.order}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.title}</div>
+                <div style={{fontSize:12,color:S.subdued,fontFamily:F,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.body}</div>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <SpotifyBtn size="sm" variant="ghost" onClick={()=>setEditing(c)}>Edit</SpotifyBtn>
+                <button onClick={()=>del(c.id)} style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",fontSize:18,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
+                  onMouseEnter={e=>e.currentTarget.style.color=S.danger}
+                  onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+              </div>
+            </div>
+          ))}
+          {!cards.length&&<div style={{textAlign:"center",color:S.subdued,fontSize:14,padding:32,fontFamily:F}}>No cards yet</div>}
+        </div>
+        <div style={{marginTop:20}}><SpotifyBtn fullWidth onClick={()=>{hap.success();onSave({...topic,cards});}}>Save</SpotifyBtn></div>
+      </Modal>
+      {editing&&<CardModal card={editing==="new"?null:editing} onSave={saveCard} onClose={()=>setEditing(null)}/>}
+    </>
+  );
+}
+
+function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDelete,onCards}){
+  const[open,setOpen]=useState(true);
+  const pad=depth*20;
+  const DelBtn=({id})=>(
+    <button onClick={e=>{e.stopPropagation();hap.error();onDelete(id);}}
+      style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",fontSize:18,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0}}
+      onMouseEnter={e=>e.currentTarget.style.color=S.danger}
+      onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+  );
+  if(node.type==="topic"){
+    return(
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",marginLeft:pad,marginBottom:2,borderRadius:4,transition:"background 0.15s"}}
+        onMouseEnter={e=>e.currentTarget.style.background=S.card}
+        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+        <div style={{width:36,height:36,borderRadius:4,background:S.card,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>📄</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F}}>{node.title}</div>
+          <div style={{fontSize:12,color:S.subdued,fontFamily:F}}>{node.cards.length} cards</div>
+        </div>
+        <SpotifyBtn size="sm" variant="ghost" onClick={()=>onCards(node)}>Cards</SpotifyBtn>
+        <SpotifyBtn size="sm" variant="ghost" onClick={()=>onEdit(node)}>Rename</SpotifyBtn>
+        <DelBtn id={node.id}/>
+      </div>
+    );
+  }
+  return(
+    <div style={{marginBottom:4}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",marginLeft:pad,borderRadius:4,cursor:"pointer",transition:"background 0.15s"}}
+        onClick={()=>setOpen(!open)}
+        onMouseEnter={e=>e.currentTarget.style.background=S.card}
+        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+        <span style={{fontSize:12,color:S.subdued,transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(90deg)":"rotate(0deg)",width:16}}>▶</span>
+        <span style={{fontSize:16,flexShrink:0}}>📁</span>
+        <span style={{fontSize:14,fontWeight:700,color:S.white,flex:1,fontFamily:F}}>{node.title}</span>
+        {!isRoot&&<>
+          <SpotifyBtn size="sm" variant="ghost" onClick={e=>{e.stopPropagation();onEdit(node);}}>Rename</SpotifyBtn>
+          <DelBtn id={node.id}/>
+        </>}
+      </div>
+      {open&&<>
+        {node.children?.map(c=><EditorTree key={c.id} node={c} depth={depth+1} onAddDir={onAddDir} onAddTopic={onAddTopic} onEdit={onEdit} onDelete={onDelete} onCards={onCards}/>)}
+        <div style={{display:"flex",gap:8,marginLeft:pad+36,marginTop:4,marginBottom:8}}>
+          <SpotifyBtn size="sm" variant="ghost" onClick={()=>onAddDir(node.id)}>+ Folder</SpotifyBtn>
+          <SpotifyBtn size="sm" variant="ghost" onClick={()=>onAddTopic(node.id)}>+ Topic</SpotifyBtn>
+        </div>
+      </>}
+    </div>
+  );
+}
+
+function LibraryEditor({library,onSave,onClose}){
+  const[tree,setTree]=useState(library);
+  const[modal,setModal]=useState(null);
+  const addDir=(pid,t)=>{setTree(p=>rebuildPaths(insertInto(p,pid,{id:`dir-${uid()}`,title:t,type:"directory",children:[]})));setModal(null);};
+  const addTopic=(pid,t)=>{setTree(p=>rebuildPaths(insertInto(p,pid,{id:`topic-${uid()}`,title:t,type:"topic",path:[],cards:[]})));setModal(null);};
+  const renameNode=(id,t)=>{setTree(p=>rebuildPaths(findAndUpdate(p,id,n=>({...n,title:t}))));setModal(null);};
+  const deleteNode=(id)=>{setTree(p=>rebuildPaths(findAndDelete(p,id)));};
+  const saveCards=(topic)=>{setTree(p=>rebuildPaths(findAndUpdate(p,topic.id,()=>topic)));setModal(null);};
+  const handleImport=(data)=>{setTree(p=>rebuildPaths(insertInto(p,"root",{...data,id:data.id||`topic-${uid()}`,type:"topic",path:data.path||[]})));setModal(null);};
+  return(
+    <>
+      <Modal title="Your Library" onClose={onClose} width={640}>
+        <EditorTree node={tree} isRoot onAddDir={id=>setModal({type:"dir",pid:id})} onAddTopic={id=>setModal({type:"topic",pid:id})} onEdit={n=>setModal({type:n.type==="directory"?"dir":"topic",node:n})} onDelete={deleteNode} onCards={n=>setModal({type:"cards",node:n})}/>
+        <div style={{display:"flex",gap:10,marginTop:24,paddingTop:16,borderTop:`1px solid ${S.border}`}}>
+          <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"import"})}>Import JSON</SpotifyBtn>
+          <SpotifyBtn onClick={()=>{hap.success();onSave(tree);onClose();}}>Save library</SpotifyBtn>
+        </div>
+      </Modal>
+      {modal?.type==="dir"&&!modal.node&&<DirectoryModal onSave={t=>addDir(modal.pid,t)} onClose={()=>setModal(null)}/>}
+      {modal?.type==="dir"&&modal.node&&<DirectoryModal existing={modal.node} onSave={t=>renameNode(modal.node.id,t)} onClose={()=>setModal(null)}/>}
+      {modal?.type==="topic"&&!modal.node&&<TopicModal onSave={t=>addTopic(modal.pid,t)} onClose={()=>setModal(null)}/>}
+      {modal?.type==="topic"&&modal.node&&<TopicModal existing={modal.node} onSave={t=>renameNode(modal.node.id,t)} onClose={()=>setModal(null)}/>}
+      {modal?.type==="cards"&&<CardSetManager topic={modal.node} onSave={saveCards} onClose={()=>setModal(null)}/>}
+      {modal?.type==="import"&&<ImportModal onClose={()=>setModal(null)} onImport={handleImport}/>}
+    </>
+  );
+}
+
+function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
+  const ref=useRef(null);
+  const[pos,setPos]=useState({x:0,y:0,rot:0});
+  const[flyOut,setFlyOut]=useState(null);
+  const[showCtx,setShowCtx]=useState(false);
+  const drag=useRef({active:false,startX:0,startY:0});
+  const done=useRef(false);
+  const THRESH=85,UP=-65;
+
+  const fire=useCallback((dir,dx,dy)=>{
+    if(done.current)return;
+    done.current=true;
+    if(dir==="up"){hap.light();setShowCtx(true);done.current=false;return;}
+    dir==="left"?hap.success():hap.error();
+    setFlyOut(dir==="left"?{x:-700,y:(dy||0)*0.3,rot:-18}:{x:700,y:(dy||0)*0.3,rot:18});
+    setTimeout(()=>onSwipe(dir),280);
+  },[onSwipe]);
+
+  useEffect(()=>{
+    if(!isTop)return;
+    const el=ref.current;if(!el)return;
+    const pt=e=>e.touches?[e.touches[0].clientX,e.touches[0].clientY]:[e.clientX,e.clientY];
+    const down=e=>{const[x,y]=pt(e);drag.current={active:true,startX:x,startY:y};};
+    const move=e=>{if(!drag.current.active)return;const[x,y]=pt(e);const dx=x-drag.current.startX,dy=y-drag.current.startY;setPos({x:dx,y:dy,rot:dx*0.05});};
+    const up=()=>{
+      if(!drag.current.active)return;
+      drag.current.active=false;
+      setPos(p=>{
+        if(p.x<-THRESH)fire("left",p.x,p.y);
+        else if(p.x>THRESH)fire("right",p.x,p.y);
+        else if(p.y<UP)fire("up",p.x,p.y);
+        else{hap.light();return{x:0,y:0,rot:0};}
+        return p;
+      });
+    };
+    el.addEventListener("mousedown",down);
+    window.addEventListener("mousemove",move);
+    window.addEventListener("mouseup",up);
+    el.addEventListener("touchstart",down,{passive:true});
+    window.addEventListener("touchmove",move,{passive:true});
+    window.addEventListener("touchend",up);
+    return()=>{
+      el.removeEventListener("mousedown",down);window.removeEventListener("mousemove",move);window.removeEventListener("mouseup",up);
+      el.removeEventListener("touchstart",down);window.removeEventListener("touchmove",move);window.removeEventListener("touchend",up);
+    };
+  },[isTop,fire]);
+
+  const tx=flyOut?`translate(${flyOut.x}px,${flyOut.y}px) rotate(${flyOut.rot}deg)`:isTop?`translate(${pos.x}px,${pos.y}px) rotate(${pos.rot}deg)`:`scale(${1-stackIndex*0.03}) translateY(${stackIndex*14}px)`;
+  const tr=flyOut?"transform 0.28s ease-in":drag.current?.active?"none":"transform 0.3s cubic-bezier(0.34,1.4,0.64,1)";
+  const lOp=Math.min(1,Math.max(0,-pos.x/70));
+  const rOp=Math.min(1,Math.max(0,pos.x/70));
+  const uOp=Math.min(1,Math.max(0,-pos.y/50));
+  const dc=card.difficulty===1?S.d1:card.difficulty===2?S.d2:S.d3;
+  const dl=card.difficulty===1?"Intro":card.difficulty===2?"Core":"Advanced";
+
+  return(
+    <div ref={ref} style={{position:"absolute",width:"100%",maxWidth:440,left:"50%",top:0,transform:`translateX(-50%) ${tx}`,transition:tr,cursor:isTop?"grab":"default",userSelect:"none",zIndex:10-stackIndex,touchAction:"none",filter:stackIndex>0?`brightness(${1-stackIndex*0.15})`:"none"}}>
+      <div style={{background:S.card,borderRadius:8,overflow:"hidden",position:"relative",boxShadow:isTop?"0 8px 40px rgba(0,0,0,0.6)":"0 2px 12px rgba(0,0,0,0.4)"}}>
+        <div style={{height:3,background:dc,width:"100%"}}/>
+        {isTop&&lOp>0.08&&<div style={{position:"absolute",top:20,left:16,opacity:lOp,transform:"rotate(-8deg)",zIndex:10,border:`2px solid ${S.green}`,borderRadius:4,padding:"4px 14px",color:S.green,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Got it ✓</div>}
+        {isTop&&rOp>0.08&&<div style={{position:"absolute",top:20,right:16,opacity:rOp,transform:"rotate(8deg)",zIndex:10,border:`2px solid ${S.danger}`,borderRadius:4,padding:"4px 14px",color:S.danger,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Again ↺</div>}
+        {isTop&&uOp>0.08&&<div style={{position:"absolute",top:16,left:"50%",transform:"translateX(-50%)",opacity:uOp,zIndex:10,border:`2px solid ${S.white}`,borderRadius:4,padding:"4px 14px",color:S.white,fontWeight:700,fontSize:14,fontFamily:F,pointerEvents:"none"}}>Deep dive ↑</div>}
+        <div style={{padding:"20px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{flex:1,paddingRight:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:F}}>{card.topicTitle}</div>
+            <div style={{fontSize:20,fontWeight:700,color:S.white,lineHeight:1.25,fontFamily:F,letterSpacing:"-0.01em"}}>{card.title}</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
+            <span style={{fontSize:11,fontWeight:700,color:dc,fontFamily:F,letterSpacing:"0.05em"}}>{dl}</span>
+            <span style={{fontSize:11,color:S.faint,fontFamily:F}}>#{card.order}</span>
+          </div>
+        </div>
+        <div style={{margin:"16px 20px",height:1,background:S.border}}/>
+        <div style={{padding:"0 20px",fontSize:15,lineHeight:1.75,color:`${S.white}cc`,fontFamily:F,minHeight:108}}>{card.body}</div>
+        {showCtx&&(
+          <div style={{margin:"14px 14px 0",background:S.elevated,borderRadius:6,padding:"14px 16px",borderLeft:`2px solid ${S.green}`}}>
+            <div style={{fontSize:11,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8,fontFamily:F}}>Deep dive</div>
+            <div style={{fontSize:13,lineHeight:1.75,color:S.subdued,fontFamily:F}}>{card.context}</div>
+          </div>
+        )}
+        <div style={{padding:"14px 20px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          {!showCtx&&<button onClick={()=>{hap.light();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=S.white}
+            onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↑ Expand</button>}
+          <button onClick={()=>{hap.medium();onConfused();}} style={{fontSize:12,fontWeight:700,color:confused?S.green:S.subdued,background:confused?`${S.green}18`:"transparent",border:`1px solid ${confused?S.green:S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,marginLeft:"auto",transition:"all 0.15s"}}>
+            {confused?"Flagged":"Flag"}
+          </button>
+        </div>
+        <div style={{paddingBottom:18,paddingLeft:20,display:"flex",gap:6,flexWrap:"wrap"}}>
+          {card.tags.map(t=><span key={t} style={{fontSize:11,fontWeight:700,color:S.subdued,background:S.elevated,borderRadius:500,padding:"3px 10px",fontFamily:F,letterSpacing:"0.04em"}}>{t}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionBar({onLeft,onRight}){
+  return(
+    <div style={{display:"flex",gap:16,justifyContent:"center",padding:"20px 0 8px"}}>
+      <button onClick={()=>{hap.error();onRight();}} style={{width:56,height:56,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,color:S.danger,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
+        onMouseEnter={e=>{e.currentTarget.style.background=S.card;e.currentTarget.style.transform="scale(1.08)";}}
+        onMouseLeave={e=>{e.currentTarget.style.background=S.elevated;e.currentTarget.style.transform="scale(1)";}}>↺</button>
+      <button onClick={()=>{hap.success();onLeft();}} style={{width:56,height:56,borderRadius:"50%",background:S.green,border:"none",color:S.bg,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
+        onMouseEnter={e=>{e.currentTarget.style.background=S.greenHover;e.currentTarget.style.transform="scale(1.08)";}}
+        onMouseLeave={e=>{e.currentTarget.style.background=S.green;e.currentTarget.style.transform="scale(1)";}}>✓</button>
+    </div>
+  );
+}
+
+function ProgressBar({current,total,revisitCount,confusedCount}){
+  const pct=total?Math.round(current/total*100):0;
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:12,fontFamily:F}}>
+        <span style={{color:S.subdued,fontWeight:700}}>{current} / {total}</span>
+        <span style={{display:"flex",gap:12}}>
+          {revisitCount>0&&<span style={{color:S.danger,fontWeight:700}}>↺ {revisitCount}</span>}
+          {confusedCount>0&&<span style={{color:S.green,fontWeight:700}}>{confusedCount} flagged</span>}
+          <span style={{color:S.white,fontWeight:700}}>{pct}%</span>
+        </span>
+      </div>
+      <div style={{height:4,background:S.faint,borderRadius:2,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${pct}%`,background:S.green,borderRadius:2,transition:"width 0.4s"}}/>
+      </div>
+    </div>
+  );
+}
+
+function DirectoryNode({node,depth,onSelect,completionMap,progressMap}){
+  const[open,setOpen]=useState(depth<2);
+  if(node.type==="topic"){
+    const done=node.cards.filter(c=>completionMap[c.id]).length;
+    const pct=node.cards.length?Math.round(done/node.cards.length*100):0;
+    const inProg=(progressMap[node.id]||0)>0&&pct<100;
+    return(
+      <div onClick={()=>{if(node.cards.length){hap.light();onSelect(node);}}}
+        style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",borderRadius:4,cursor:node.cards.length?"pointer":"default",transition:"background 0.15s",marginBottom:2}}
+        onMouseEnter={e=>{if(node.cards.length)e.currentTarget.style.background=S.card;}}
+        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+        <div style={{width:44,height:44,borderRadius:4,background:pct===100?`${S.green}22`:inProg?`${S.d2}22`:S.card,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,position:"relative"}}>
+          <span style={{fontSize:20}}>{pct===100?"✅":"📖"}</span>
+          {inProg&&<div style={{position:"absolute",bottom:2,right:2,width:8,height:8,borderRadius:"50%",background:S.green,border:`2px solid ${S.surface}`}}/>}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{node.title}</div>
+          <div style={{fontSize:12,color:S.subdued,fontFamily:F}}>{node.cards.length} cards{!node.cards.length?" · add cards in library":""}</div>
+        </div>
+        <div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{fontSize:13,fontWeight:700,color:pct===100?S.green:inProg?S.white:S.subdued,fontFamily:F}}>{pct}%</div>
+          {pct>0&&pct<100&&<div style={{width:40,height:2,background:S.faint,borderRadius:1,marginTop:4,overflow:"hidden",marginLeft:"auto"}}><div style={{width:`${pct}%`,height:"100%",background:S.green,borderRadius:1}}/></div>}
+        </div>
+      </div>
+    );
+  }
+  return(
+    <div style={{marginBottom:2}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:4,cursor:"pointer",transition:"background 0.15s"}}
+        onClick={()=>setOpen(!open)}
+        onMouseEnter={e=>e.currentTarget.style.background=S.card}
+        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+        <span style={{fontSize:11,color:S.subdued,transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(90deg)":"rotate(0)",width:14}}>▶</span>
+        <span style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,flex:1}}>{node.title}</span>
+        <span style={{fontSize:12,color:S.faint,fontFamily:F}}>{(node.children||[]).length} items</span>
+      </div>
+      {open&&<div style={{paddingLeft:depth>0?16:0}}>{node.children?.map(c=><DirectoryNode key={c.id} node={c} depth={depth+1} onSelect={onSelect} completionMap={completionMap} progressMap={progressMap}/>)}</div>}
+    </div>
+  );
+}
+
+function CompletionScreen({topic,revisitCards,confusedCards,onHome,onRevisitAll}){
+  return(
+    <div style={{padding:"40px 0 24px",textAlign:"center"}}>
+      <div style={{width:80,height:80,borderRadius:"50%",background:`${S.green}22`,border:`2px solid ${S.green}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px",fontSize:36}}>🎯</div>
+      <div style={{fontSize:28,fontWeight:700,color:S.white,fontFamily:F,letterSpacing:"-0.02em",marginBottom:8}}>Done!</div>
+      <div style={{fontSize:15,color:S.subdued,fontFamily:F,marginBottom:36}}>{topic.title}</div>
+      {revisitCards.length>0&&(
+        <div style={{background:S.card,borderRadius:8,padding:"16px 20px",marginBottom:12,textAlign:"left"}}>
+          <div style={{fontSize:12,fontWeight:700,color:S.danger,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,fontFamily:F}}>Review queue · {revisitCards.length}</div>
+          {revisitCards.map(c=><div key={c.id} style={{fontSize:13,color:S.subdued,padding:"6px 0",borderBottom:`1px solid ${S.border}`,fontFamily:F}}>{c.title}</div>)}
+          <button onClick={()=>{hap.medium();onRevisitAll();}} style={{marginTop:14,width:"100%",padding:"11px 0",background:"transparent",border:`1px solid ${S.danger}`,borderRadius:500,color:S.danger,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:F}}>Start review →</button>
+        </div>
+      )}
+      {confusedCards.length>0&&(
+        <div style={{background:S.card,borderRadius:8,padding:"16px 20px",marginBottom:12,textAlign:"left"}}>
+          <div style={{fontSize:12,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,fontFamily:F}}>Flagged · {confusedCards.length}</div>
+          {confusedCards.map(c=><div key={c.id} style={{fontSize:13,color:S.subdued,padding:"6px 0",borderBottom:`1px solid ${S.border}`,fontFamily:F}}>{c.title}</div>)}
+        </div>
+      )}
+      <SpotifyBtn fullWidth onClick={()=>{hap.medium();onHome();}}>Back to library</SpotifyBtn>
+    </div>
+  );
+}
+
+export default function App(){
+  const[ready,setReady]=useState(false);
+  const[library,setLibrary]=useState(null);
+  const[completionMap,setCompletionMap]=useState({});
+  const[revisitIds,setRevisitIds]=useState([]);
+  const[confusedIds,setConfusedIds]=useState([]);
+  const[progressMap,setProgressMap]=useState({});
+  const[screen,setScreen]=useState("home");
+  const[activeTopic,setActiveTopic]=useState(null);
+  const[cardIndex,setCardIndex]=useState(0);
+  const[activeQueue,setActiveQueue]=useState([]);
+  const[showEditor,setShowEditor]=useState(false);
+
+  // ── load from localStorage on boot ─────────────────────────────────────────
+  useEffect(()=>{
+    setCompletionMap(lsLoad(KEYS.completion,{}));
+    setRevisitIds(lsLoad(KEYS.revisit,[]));
+    setConfusedIds(lsLoad(KEYS.confused,[]));
+    setProgressMap(lsLoad(KEYS.progress,{}));
+    setLibrary(lsLoad(KEYS.library,null)||DEMO_DATA);
+    setReady(true);
+  },[]);
+
+  const saveLibrary=useCallback((tree)=>{setLibrary(tree);lsSave(KEYS.library,tree);},[]);
+  const topics=library?flattenTopics(library):[];
+  const currentCard=activeQueue[cardIndex];
+  const totalCards=topics.reduce((s,t)=>s+t.cards.length,0);
+  const doneCards=Object.keys(completionMap).length;
+  const pct=totalCards?Math.round(doneCards/totalCards*100):0;
+
+  const startTopic=(topic,revisitMode=false)=>{
+    const queue=(revisitMode?topic.cards.filter(c=>revisitIds.includes(c.id)):topic.cards).map(c=>({...c,topicId:topic.id,topicTitle:topic.title}));
+    const saved=!revisitMode&&progressMap[topic.id]?progressMap[topic.id]:0;
+    setActiveTopic(topic);setActiveQueue(queue);setCardIndex(Math.min(saved,Math.max(0,queue.length-1)));setScreen("learn");
+  };
+
+  const advance=useCallback((dir)=>{
+    const card=activeQueue[cardIndex];if(!card)return;
+    if(dir==="left"){
+      const nc={...completionMap,[card.id]:true};const nr=revisitIds.filter(id=>id!==card.id);
+      setCompletionMap(nc);setRevisitIds(nr);lsSave(KEYS.completion,nc);lsSave(KEYS.revisit,nr);
+    }else if(dir==="right"&&!revisitIds.includes(card.id)){
+      const nr=[...revisitIds,card.id];setRevisitIds(nr);lsSave(KEYS.revisit,nr);
+    }
+    const next=cardIndex+1;
+    if(next>=activeQueue.length){
+      const np={...progressMap,[card.topicId]:0};setProgressMap(np);lsSave(KEYS.progress,np);setScreen("complete");
+    }else{
+      const np={...progressMap,[card.topicId]:next};setProgressMap(np);lsSave(KEYS.progress,np);setCardIndex(next);
+    }
+  },[activeQueue,cardIndex,completionMap,revisitIds,progressMap]);
+
+  const toggleConfused=useCallback((id)=>{
+    const next=confusedIds.includes(id)?confusedIds.filter(x=>x!==id):[...confusedIds,id];
+    setConfusedIds(next);lsSave(KEYS.confused,next);
+  },[confusedIds]);
+
+  const handleReset=()=>{
+    hap.error();
+    setCompletionMap({});setRevisitIds([]);setConfusedIds([]);setProgressMap({});
+    [KEYS.completion,KEYS.revisit,KEYS.confused,KEYS.progress].forEach(k=>lsSave(k,k===KEYS.revisit||k===KEYS.confused?[]:{}) );
+    setScreen("home");
+  };
+
+  const revisitCards=activeTopic?activeTopic.cards.filter(c=>revisitIds.includes(c.id)):[];
+  const confusedCards=activeTopic?activeTopic.cards.filter(c=>confusedIds.includes(c.id)):[];
+
+  if(!ready)return(
+    <div style={{minHeight:"100vh",background:S.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{width:40,height:40,border:`3px solid ${S.green}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  return(
+    <div style={{minHeight:"100vh",background:S.bg,fontFamily:F,color:S.white}}>
+      <style>{`*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}button{font-family:${F};}::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:${S.faint};border-radius:2px;}`}</style>
+
+      {screen==="home"&&(
+        <div style={{maxWidth:520,margin:"0 auto",padding:"24px 16px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28}}>
+            <div style={{fontSize:22,fontWeight:700,letterSpacing:"-0.02em"}}>Your Library</div>
+            <div style={{display:"flex",gap:8}}>
+              <SpotifyBtn size="sm" onClick={()=>setShowEditor(true)}>Edit library</SpotifyBtn>
+              <button onClick={handleReset} style={{background:"transparent",border:"none",color:S.faint,fontSize:13,cursor:"pointer",fontFamily:F,padding:"4px 8px"}}
+                onMouseEnter={e=>e.currentTarget.style.color=S.subdued}
+                onMouseLeave={e=>e.currentTarget.style.color=S.faint}>Reset</button>
+            </div>
+          </div>
+          <div style={{background:S.card,borderRadius:8,padding:"20px",marginBottom:24}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:14}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:S.subdued,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:6}}>Overall progress</div>
+                <div style={{fontSize:13,color:S.subdued,fontFamily:F}}>{doneCards} of {totalCards} cards</div>
+              </div>
+              <div style={{fontSize:32,fontWeight:700,color:S.green}}>{pct}<span style={{fontSize:18,color:S.subdued}}>%</span></div>
+            </div>
+            <div style={{height:4,background:S.faint,borderRadius:2,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${pct}%`,background:S.green,borderRadius:2,transition:"width 0.5s"}}/>
+            </div>
+            {(revisitIds.length>0||confusedIds.length>0)&&(
+              <div style={{display:"flex",gap:16,marginTop:14}}>
+                {revisitIds.length>0&&<span style={{fontSize:13,color:S.danger,fontWeight:700}}>↺ {revisitIds.length} to review</span>}
+                {confusedIds.length>0&&<span style={{fontSize:13,color:S.green,fontWeight:700}}>{confusedIds.length} flagged</span>}
+              </div>
+            )}
+          </div>
+          {library&&<DirectoryNode node={library} depth={0} onSelect={startTopic} completionMap={completionMap} progressMap={progressMap}/>}
+          <div style={{marginTop:28,background:S.card,borderRadius:8,padding:"16px 20px"}}>
+            <div style={{fontSize:13,fontWeight:700,color:S.subdued,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:14}}>How to swipe</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[["← Left","Got it ✓",S.green],["→ Right","Review ↺",S.danger],["↑ Up","Deep dive",S.white],["Flag btn","Research",S.subdued]].map(([k,v,c])=>(
+                <div key={k}><div style={{fontSize:13,fontWeight:700,color:c,marginBottom:2}}>{k}</div><div style={{fontSize:12,color:S.faint}}>{v}</div></div>
+              ))}
+            </div>
+          </div>
+          <div style={{marginTop:10,textAlign:"center",fontSize:12,color:S.faint}}>All progress saved automatically</div>
+        </div>
+      )}
+
+      {screen==="learn"&&currentCard&&(
+        <div style={{maxWidth:520,margin:"0 auto",padding:"16px 16px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+            <button onClick={()=>{hap.light();setScreen("home");}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:22,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
+              onMouseEnter={e=>e.currentTarget.style.color=S.white}
+              onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>‹</button>
+            <div style={{flex:1,fontSize:15,fontWeight:700,color:S.white,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeTopic?.title}</div>
+          </div>
+          <ProgressBar current={cardIndex} total={activeQueue.length} revisitCount={revisitIds.filter(id=>activeQueue.some(c=>c.id===id)).length} confusedCount={confusedIds.filter(id=>activeQueue.some(c=>c.id===id)).length}/>
+          <div style={{position:"relative",height:500,marginTop:20}}>
+            {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onSwipe={advance} onConfused={()=>toggleConfused(c.id)}/>;}).filter(Boolean)}
+          </div>
+          <ActionBar onLeft={()=>advance("left")} onRight={()=>advance("right")}/>
+          <div style={{textAlign:"center",fontSize:12,color:S.faint,marginTop:8}}>Drag or tap · progress saved</div>
+        </div>
+      )}
+
+      {screen==="complete"&&activeTopic&&(
+        <div style={{maxWidth:520,margin:"0 auto",padding:"20px 16px"}}>
+          <CompletionScreen topic={activeTopic} revisitCards={revisitCards} confusedCards={confusedCards} onHome={()=>setScreen("home")} onRevisitAll={()=>startTopic(activeTopic,true)}/>
+        </div>
+      )}
+
+      {showEditor&&library&&<LibraryEditor library={library} onSave={saveLibrary} onClose={()=>setShowEditor(false)}/>}
+    </div>
+  );
+}
