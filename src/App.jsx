@@ -51,6 +51,38 @@ const hap={
   error:()=>{try{navigator.vibrate?.([60,30,60]);}catch{}}
 };
 
+// ── AUDIO ENGINE — all sounds synthesized, no files required ──────────────────
+let _actx=null;
+const actx=()=>{
+  if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();
+  if(_actx.state==="suspended")_actx.resume();
+  return _actx;
+};
+function nburst(dur,f0,f1,q,vol){
+  const ctx=actx(),n=Math.ceil(ctx.sampleRate*dur),buf=ctx.createBuffer(1,n,ctx.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const flt=ctx.createBiquadFilter();flt.type="bandpass";flt.Q.value=q;
+  flt.frequency.setValueAtTime(f0,ctx.currentTime);
+  if(f1)flt.frequency.exponentialRampToValueAtTime(f1,ctx.currentTime+dur);
+  const g=ctx.createGain();g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+  src.connect(flt);flt.connect(g);g.connect(ctx.destination);src.start();src.stop(ctx.currentTime+dur+0.01);
+}
+function ntone(freq,dur,vol){
+  const ctx=actx(),osc=ctx.createOscillator(),g=ctx.createGain();
+  osc.type="sine";osc.frequency.value=freq;
+  g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+  osc.connect(g);g.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+dur+0.01);
+}
+const snd={
+  grab:      ()=>nburst(0.04,1800,600,2,0.12),
+  friction:  ()=>nburst(0.07,1100,700,1.5,0.07),
+  swipeLeft: ()=>{nburst(0.22,1400,260,1,0.35);setTimeout(()=>nburst(0.08,180,null,0.4,0.2),210);},
+  swipeRight:()=>{nburst(0.18,900,210,1.5,0.28);setTimeout(()=>nburst(0.08,180,null,0.4,0.18),170);},
+  snapBack:  ()=>nburst(0.07,200,null,0.5,0.15),
+  reveal:    ()=>{ntone(660,0.15,0.1);setTimeout(()=>ntone(880,0.2,0.08),80);},
+};
+
 function SpotifyBtn({children,onClick,variant="primary",size="md",fullWidth=false}){
   const bg=variant==="primary"?S.green:variant==="secondary"?"transparent":S.elevated;
   const col=variant==="primary"?"#1c1208":S.white;
@@ -289,8 +321,8 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
   const fire=useCallback((dir,dx,dy)=>{
     if(done.current)return;
     done.current=true;
-    if(dir==="up"){hap.light();setShowCtx(true);done.current=false;return;}
-    dir==="left"?hap.success():hap.error();
+    if(dir==="up"){hap.light();snd.reveal();setShowCtx(true);done.current=false;return;}
+    if(dir==="left"){hap.success();snd.swipeLeft();}else{hap.error();snd.swipeRight();}
     setFlyOut(dir==="left"?{x:-700,y:(dy||0)*0.3,rot:-18}:{x:700,y:(dy||0)*0.3,rot:18});
     setTimeout(()=>onSwipe(dir),280);
   },[onSwipe]);
@@ -299,8 +331,14 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
     if(!isTop)return;
     const el=ref.current;if(!el)return;
     const pt=e=>e.touches?[e.touches[0].clientX,e.touches[0].clientY]:[e.clientX,e.clientY];
-    const down=e=>{const[x,y]=pt(e);drag.current={active:true,startX:x,startY:y};};
-    const move=e=>{if(!drag.current.active)return;const[x,y]=pt(e);const dx=x-drag.current.startX,dy=y-drag.current.startY;setPos({x:dx,y:dy,rot:dx*0.05});};
+    const down=e=>{const[x,y]=pt(e);drag.current={active:true,startX:x,startY:y,lastFrictDist:0};snd.grab();};
+    const move=e=>{
+      if(!drag.current.active)return;
+      const[x,y]=pt(e);const dx=x-drag.current.startX,dy=y-drag.current.startY;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist>12&&Math.abs(dist-drag.current.lastFrictDist)>28){snd.friction();drag.current.lastFrictDist=dist;}
+      setPos({x:dx,y:dy,rot:dx*0.05});
+    };
     const up=()=>{
       if(!drag.current.active)return;
       drag.current.active=false;
@@ -308,7 +346,7 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
         if(p.x<-THRESH)fire("left",p.x,p.y);
         else if(p.x>THRESH)fire("right",p.x,p.y);
         else if(p.y<UP)fire("up",p.x,p.y);
-        else{hap.light();return{x:0,y:0,rot:0};}
+        else{hap.light();snd.snapBack();return{x:0,y:0,rot:0};}
         return p;
       });
     };
@@ -358,7 +396,7 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
           </div>
         )}
         <div style={{padding:"14px 20px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-          {!showCtx&&<button onClick={()=>{hap.light();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}}
+          {!showCtx&&<button onClick={()=>{hap.light();snd.reveal();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}}
             onMouseEnter={e=>e.currentTarget.style.borderColor=S.white}
             onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↑ Expand</button>}
           <button onClick={()=>{hap.medium();onConfused();}} style={{fontSize:12,fontWeight:700,color:confused?S.green:S.subdued,background:confused?`${S.green}18`:"transparent",border:`1px solid ${confused?S.green:S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,marginLeft:"auto",transition:"all 0.15s"}}>
@@ -376,10 +414,10 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
 function ActionBar({onLeft,onRight}){
   return(
     <div style={{display:"flex",gap:16,justifyContent:"center",padding:"20px 0 8px"}}>
-      <button onClick={()=>{hap.error();onRight();}} style={{width:56,height:56,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,color:S.danger,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
+      <button onClick={()=>{hap.error();snd.swipeRight();onRight();}} style={{width:56,height:56,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,color:S.danger,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
         onMouseEnter={e=>{e.currentTarget.style.background=S.card;e.currentTarget.style.transform="scale(1.08)";}}
         onMouseLeave={e=>{e.currentTarget.style.background=S.elevated;e.currentTarget.style.transform="scale(1)";}}>↺</button>
-      <button onClick={()=>{hap.success();onLeft();}} style={{width:56,height:56,borderRadius:"50%",background:S.green,border:"none",color:S.bg,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
+      <button onClick={()=>{hap.success();snd.swipeLeft();onLeft();}} style={{width:56,height:56,borderRadius:"50%",background:S.green,border:"none",color:S.bg,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
         onMouseEnter={e=>{e.currentTarget.style.background=S.greenHover;e.currentTarget.style.transform="scale(1.08)";}}
         onMouseLeave={e=>{e.currentTarget.style.background=S.green;e.currentTarget.style.transform="scale(1)";}}>✓</button>
     </div>
