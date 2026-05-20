@@ -186,7 +186,7 @@ function ImportModal({onClose,onImport}){
   );
 }
 
-function PromptModal({onClose}){
+function PromptContent({inline=false}){
   const[topic,setTopic]=useState("");
   const[audience,setAudience]=useState("");
   const[difficulty,setDifficulty]=useState(null);
@@ -256,11 +256,11 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
     ["2","Copy a prompt — Master for better quality, Simple for quick iteration"],
     ["3","Paste it into Claude, ChatGPT, Gemini, or any LLM and run it"],
     ["4","Copy the entire JSON block the LLM outputs"],
-    ["5","Close this — tap Edit Library → Import JSON → paste → Import"],
+    ["5",inline?"Tap Edit Library → Import JSON → paste → Import":"Close this — tap Edit Library → Import JSON → paste → Import"],
   ];
 
   return(
-    <Modal title="Generate with AI" onClose={onClose} width={560}>
+    <>
       <Field label="Topic">
         <input style={inpStyle} value={topic} onChange={e=>setTopic(e.target.value)} placeholder='e.g. How transformers work' autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
       </Field>
@@ -294,6 +294,14 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+function PromptModal({onClose}){
+  return(
+    <Modal title="Generate with AI" onClose={onClose} width={560}>
+      <PromptContent inline={false}/>
     </Modal>
   );
 }
@@ -634,6 +642,7 @@ export default function App(){
   const[cardIndex,setCardIndex]=useState(0);
   const[activeQueue,setActiveQueue]=useState([]);
   const[showEditor,setShowEditor]=useState(false);
+  const[showPromptPanel,setShowPromptPanel]=useState(false);
 
   // ── load from localStorage on boot ─────────────────────────────────────────
   useEffect(()=>{
@@ -702,15 +711,26 @@ export default function App(){
 
       {screen==="home"&&(
         <div style={{maxWidth:520,margin:"0 auto",padding:"24px 16px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showPromptPanel?16:28}}>
             <div style={{fontSize:22,fontWeight:700,letterSpacing:"-0.02em"}}>Your Library</div>
-            <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button onClick={()=>{hap.light();setShowPromptPanel(p=>!p);}} style={{background:showPromptPanel?`${S.green}18`:"transparent",border:`1px solid ${showPromptPanel?S.green:S.border}`,color:showPromptPanel?S.green:S.subdued,borderRadius:500,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s",whiteSpace:"nowrap"}}
+                onMouseEnter={e=>{if(!showPromptPanel){e.currentTarget.style.borderColor=S.subdued;e.currentTarget.style.color=S.white;}}}
+                onMouseLeave={e=>{if(!showPromptPanel){e.currentTarget.style.borderColor=S.border;e.currentTarget.style.color=S.subdued;}}}>
+                {showPromptPanel?"✕ Close":"AI Prompt"}
+              </button>
               <SpotifyBtn size="sm" onClick={()=>setShowEditor(true)}>Edit library</SpotifyBtn>
               <button onClick={handleReset} style={{background:"transparent",border:"none",color:S.faint,fontSize:13,cursor:"pointer",fontFamily:F,padding:"4px 8px"}}
                 onMouseEnter={e=>e.currentTarget.style.color=S.subdued}
                 onMouseLeave={e=>e.currentTarget.style.color=S.faint}>Reset</button>
             </div>
           </div>
+          {showPromptPanel&&(
+            <div style={{background:S.elevated,border:`1px solid ${S.border}`,borderRadius:8,padding:"20px",marginBottom:24}}>
+              <div style={{fontSize:13,fontWeight:700,color:S.green,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:16,fontFamily:F}}>Generate with AI</div>
+              <PromptContent inline/>
+            </div>
+          )}
           <div style={{background:S.card,borderRadius:8,padding:"20px",marginBottom:24}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:14}}>
               <div>
