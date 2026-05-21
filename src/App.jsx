@@ -90,7 +90,7 @@ function SpotifyBtn({children,onClick,variant="primary",size="md",fullWidth=fals
   const pad=size==="sm"?"8px 16px":"14px 32px";
   const fs=size==="sm"?13:14;
   return(
-    <button onMouseDown={()=>{hap.medium();onClick&&onClick();}} onClick={()=>{onClick&&onClick();}}
+    <button onMouseDown={()=>hap.medium()} onClick={()=>{onClick&&onClick();}}
       style={{background:bg,color:col,border,borderRadius:500,padding:pad,fontFamily:F,fontSize:fs,fontWeight:700,letterSpacing:"0.05em",cursor:"pointer",width:fullWidth?"100%":"auto",transition:"transform 0.1s,background 0.1s",whiteSpace:"nowrap"}}
       onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.04)";if(variant==="primary")e.currentTarget.style.background=S.greenHover;}}
       onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";if(variant==="primary")e.currentTarget.style.background=S.green;}}
@@ -262,7 +262,7 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
   return(
     <>
       <Field label="Topic">
-        <input style={inpStyle} value={topic} onChange={e=>setTopic(e.target.value)} placeholder='e.g. How transformers work' autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+        <input style={inpStyle} value={topic} onChange={e=>setTopic(e.target.value)} placeholder='e.g. How transformers work' autoFocus={!inline} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
       </Field>
       <Field label="Audience (optional)">
         <input style={inpStyle} value={audience} onChange={e=>setAudience(e.target.value)} placeholder='e.g. software engineers with no ML background' onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
@@ -658,7 +658,7 @@ export default function App(){
   const topics=library?flattenTopics(library):[];
   const currentCard=activeQueue[cardIndex];
   const totalCards=topics.reduce((s,t)=>s+t.cards.length,0);
-  const doneCards=Object.keys(completionMap).length;
+  const doneCards=topics.reduce((s,t)=>s+t.cards.filter(c=>completionMap[c.id]).length,0);
   const pct=totalCards?Math.round(doneCards/totalCards*100):0;
 
   const startTopic=(topic,revisitMode=false)=>{
