@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   try {
     const geminiRes = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       let msg = '';
       try { const e = await geminiRes.json(); msg = e.error?.message || ''; } catch {}
       if (geminiRes.status === 400) return res.status(400).json({ error: 'Invalid request — try rephrasing your topic.' });
-      if (geminiRes.status === 429) return res.status(429).json({ error: 'Rate limit reached — try again in a minute.' });
+      if (geminiRes.status === 429) return res.status(429).json({ error: `Rate limit reached — try again in a minute.${msg ? ' (' + msg + ')' : ''}` });
       return res.status(502).json({ error: `Generation failed${msg ? ': ' + msg : ''}` });
     }
 
