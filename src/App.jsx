@@ -202,6 +202,7 @@ function PromptContent({inline=false,onImport}){
   const[topic,setTopic]=useState("");
   const[audience,setAudience]=useState("");
   const[difficulty,setDifficulty]=useState(null);
+  const[cardCount,setCardCount]=useState(30);
   const[copied,setCopied]=useState(null);
   const[generating,setGenerating]=useState(false);
   const[genResult,setGenResult]=useState(null);
@@ -231,6 +232,7 @@ function PromptContent({inline=false,onImport}){
     return `You are an expert curriculum designer creating content for a sequential card-based learning app.
 
 TOPIC: ${t}${a}${d}
+CARD COUNT: Generate exactly ${cardCount} cards.
 
 Design a carefully sequenced set of learning cards. The order IS the curriculum — later cards assume the user understood earlier ones.
 
@@ -267,7 +269,7 @@ OUTPUT: Raw JSON only. No markdown, no code fences, no explanation before or aft
     const t=topic.trim()||"[YOUR TOPIC]";
     const a=audience.trim()?` for ${audience.trim()}`:"";
     const d=difficulty?` Difficulty focus: ${difficulty}.`:"";
-    return `You are a curriculum designer. Break "${t}"${a} into a sequential card set.${d}
+    return `You are a curriculum designer. Break "${t}"${a} into a sequential card set of exactly ${cardCount} cards.${d}
 Output ONLY valid JSON: { "id": "topic-abc", "title": "${t}", "type": "topic", "path": [], "cards": [{ "id": "card-1", "order": 1, "title": "...", "body": "2–4 sentences, one idea only.", "context": "deeper why/how", "tags": ["foundational"], "difficulty": 1 }] }
 Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Core 3=Advanced. No markdown. Raw JSON only.`;
   };
@@ -299,6 +301,29 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
               {label}
             </button>
           ))}
+        </div>
+      </Field>
+
+      <Field label={`Number of cards — ${cardCount}`}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:12,color:S.faint,fontFamily:F,flexShrink:0}}>1</span>
+          <div style={{flex:1,position:"relative"}}>
+            <style>{`
+              .sl-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:linear-gradient(to right,${S.green} ${cardCount}%,${S.faint} ${cardCount}%);outline:none;cursor:pointer;}
+              .sl-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:${S.green};cursor:pointer;box-shadow:0 0 0 3px ${S.card},0 0 0 5px ${S.green}44;}
+              .sl-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:${S.green};cursor:pointer;border:none;box-shadow:0 0 0 3px ${S.card},0 0 0 5px ${S.green}44;}
+            `}</style>
+            <input
+              type="range" min={1} max={100} value={cardCount}
+              onChange={e=>setCardCount(Number(e.target.value))}
+              className="sl-slider"
+            />
+          </div>
+          <span style={{fontSize:12,color:S.faint,fontFamily:F,flexShrink:0}}>100</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:6,fontSize:11,color:S.faint,fontFamily:F}}>
+          <span>Quick overview</span>
+          <span>Deep dive</span>
         </div>
       </Field>
 
