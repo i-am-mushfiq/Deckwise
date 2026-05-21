@@ -817,7 +817,7 @@ export default function App(){
       {screen==="home"&&(
         <div style={{maxWidth:520,margin:"0 auto",padding:"24px 16px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showPromptPanel?16:28}}>
-            <img src="/icon-192.png" alt="SwipeLearn" style={{width:36,height:36,borderRadius:8}}/>
+            <img src="/icon-192.png" alt="Deckwise" style={{width:36,height:36,borderRadius:8}}/>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button onClick={()=>{hap.light();setShowPromptPanel(p=>!p);}} style={{background:showPromptPanel?`${S.green}18`:"transparent",border:`1px solid ${showPromptPanel?S.green:S.border}`,color:showPromptPanel?S.green:S.subdued,borderRadius:500,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s",whiteSpace:"nowrap"}}
                 onMouseEnter={e=>{if(!showPromptPanel){e.currentTarget.style.borderColor=S.subdued;e.currentTarget.style.color=S.white;}}}

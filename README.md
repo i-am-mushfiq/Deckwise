@@ -1,16 +1,16 @@
-# SwipeLearn
+# Deckwise
 
 > Sequential, swipe-driven learning cards. Built for focused people who want to actually retain what they study.
 
-![SwipeLearn](https://img.shields.io/badge/status-active-c8761a?style=flat-square) ![License](https://img.shields.io/badge/license-MIT-3a2912?style=flat-square) ![React](https://img.shields.io/badge/React-18-c8761a?style=flat-square&logo=react) ![Vite](https://img.shields.io/badge/Vite-5-3a2912?style=flat-square&logo=vite) ![PWA](https://img.shields.io/badge/PWA-ready-c8761a?style=flat-square)
+![Deckwise](https://img.shields.io/badge/status-active-c8761a?style=flat-square) ![License](https://img.shields.io/badge/license-MIT-3a2912?style=flat-square) ![React](https://img.shields.io/badge/React-18-c8761a?style=flat-square&logo=react) ![Vite](https://img.shields.io/badge/Vite-5-3a2912?style=flat-square&logo=vite) ![PWA](https://img.shields.io/badge/PWA-ready-c8761a?style=flat-square)
 
 ---
 
-## What is SwipeLearn?
+## What is Deckwise?
 
-SwipeLearn is a **progressive, sequential card-learning system** — not a flashcard app.
+Deckwise is a **progressive, sequential card-learning system** — not a flashcard app.
 
-Most learning tools shuffle cards randomly and treat all knowledge as equal. SwipeLearn is built on a different philosophy: **order matters**. Later concepts depend on earlier ones. The card sequence is the curriculum.
+Most learning tools shuffle cards randomly and treat all knowledge as equal. Deckwise is built on a different philosophy: **order matters**. Later concepts depend on earlier ones. The card sequence is the curriculum.
 
 The interaction model is borrowed from Tinder's swipe mechanic, but applied to structured learning — each swipe is a deliberate cognitive signal, not a passive scroll.
 
@@ -37,11 +37,12 @@ Cards are **ordered**. You move through a topic sequentially. When you finish, y
 - **Review queue** — right-swipe flags cards for revisiting at the end of a session
 - **Research flags** — mark cards you need to investigate further
 - **Resume from where you left off** — per-topic progress saved automatically
+- **AI card generation** — generate a full topic deck instantly via Groq (Llama 3.3 70B)
 - **Full CRUD** — create directories, topics, and cards entirely in-app
 - **JSON import** — paste any topic JSON to add new content instantly
 - **Nested library** — organize topics into folders and sub-folders
 - **PWA** — installs on iPhone and Android home screen, works offline
-- **Haptics** — tactile feedback on every swipe and interaction (iOS/Android)
+- **Haptics** — tactile feedback on every swipe and interaction (Android)
 - **Rustic Autumn palette** — dark bark backgrounds, worn leather cards, burnt amber accent
 
 ---
@@ -65,10 +66,11 @@ Cards are **ordered**. You move through a topic sequentially. When you finish, y
 | PWA | vite-plugin-pwa + Workbox |
 | Storage | localStorage (persists on device) |
 | Styling | Inline React styles — zero CSS files |
+| AI | Groq API (Llama 3.3 70B) via Vercel serverless |
 | Deployment | Vercel |
 | Package manager | npm |
 
-No backend. No database. No authentication. Everything lives on the user's device.
+No backend database. No authentication. Everything lives on the user's device.
 
 ---
 
@@ -84,8 +86,8 @@ No backend. No database. No authentication. Everything lives on the user's devic
 
 ```bash
 # Clone the repo
-git clone https://github.com/i-am-mushfiq/swipelearn.git
-cd swipelearn
+git clone https://github.com/i-am-mushfiq/Deckwise.git
+cd Deckwise
 
 # Install dependencies
 npm install
@@ -123,12 +125,20 @@ Follow the prompts, accept all defaults. Your app is live in under a minute.
 **Or via GitHub auto-deploy:**
 1. Push this repo to GitHub
 2. Go to [vercel.com](https://vercel.com) → New Project → Import from GitHub
-3. Select `swipelearn` → Deploy
+3. Select `Deckwise` → Deploy
 4. Every `git push` auto-deploys from now on
+
+### Environment variables
+
+Add this in Vercel → Project → Settings → Environment Variables:
+
+| Key | Value |
+|---|---|
+| `GROQ_API_KEY` | Your key from [console.groq.com](https://console.groq.com) |
 
 ### Other platforms
 
-The `/dist` output is a static site — it deploys to Netlify, Cloudflare Pages, GitHub Pages, or any static host with zero configuration.
+The `/dist` output is a static site — it deploys to Netlify, Cloudflare Pages, GitHub Pages, or any static host with zero configuration. Note: the `/api/generate` serverless function requires Vercel or a Node.js host.
 
 ---
 
@@ -140,13 +150,13 @@ The `/dist` output is a static site — it deploys to Netlify, Cloudflare Pages,
 4. Tap **Add to Home Screen**
 5. Tap **Add**
 
-SwipeLearn now lives on your home screen. Full screen, no browser chrome, works offline. Indistinguishable from a native app.
+Deckwise now lives on your home screen. Full screen, no browser chrome, works offline. Indistinguishable from a native app.
 
 ---
 
 ## Content — JSON schema
 
-SwipeLearn is content-agnostic. You feed it topics via JSON. The structure:
+Deckwise is content-agnostic. You feed it topics via JSON. The structure:
 
 ```json
 {
@@ -184,18 +194,14 @@ SwipeLearn is content-agnostic. You feed it topics via JSON. The structure:
 | `cards[].tags` | string[] | Lowercase labels, e.g. `["foundational", "mechanism"]` |
 | `cards[].difficulty` | number | `1` = Intro, `2` = Core, `3` = Advanced |
 
-### Generating content with AI
-
-Use this prompt with any LLM to generate valid SwipeLearn JSON:
-
-> You are a curriculum designer. Break down the topic **[YOUR TOPIC]** into a sequential learning card set. Output only valid JSON matching this schema: `{ id, title, type: "topic", path, cards: [{ id, order, title, body, context, tags, difficulty }] }`. Cards must be ordered so each concept builds on the previous. One idea per card. Body = 2–4 sentences. Context = the deeper "why". Difficulty 1–3. No markdown, no preamble — raw JSON only.
-
 ---
 
 ## Project structure
 
 ```
-swipelearn/
+Deckwise/
+├── api/
+│   └── generate.js         ← Vercel serverless — Groq proxy
 ├── public/
 │   ├── icon-192.png        ← PWA icon (iOS home screen)
 │   └── icon-512.png        ← PWA icon (splash screen)
@@ -214,7 +220,7 @@ The entire application lives in `src/App.jsx`. No component files, no routing li
 
 ## Design system
 
-SwipeLearn uses a **Rustic Autumn** palette — dark, warm, and intentional.
+Deckwise uses a **Rustic Autumn** palette — dark, warm, and intentional.
 
 | Token | Hex | Usage |
 |---|---|---|
@@ -238,7 +244,7 @@ Typography follows the system font stack with SF Pro Rounded as the preferred fa
 
 ## Roadmap
 
-- [ ] AI-generated card content (Claude API integration)
+- [x] AI-generated card content (Groq / Llama 3.3 70B)
 - [ ] Export progress as JSON
 - [ ] Spaced repetition scheduling for the review queue
 - [ ] Multiple library profiles

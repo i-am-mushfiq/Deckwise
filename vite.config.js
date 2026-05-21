@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'SwipeLearn',
-        short_name: 'SwipeLearn',
+        name: 'Deckwise',
+        short_name: 'Deckwise',
         description: 'Sequential card-based learning',
         theme_color: '#1c1208',
         background_color: '#1c1208',
