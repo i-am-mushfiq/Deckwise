@@ -39,7 +39,7 @@ function findAndDelete(node,id){if(!node.children)return node;return{...node,chi
 function insertInto(node,pid,child){if(node.id===pid)return{...node,children:[...(node.children||[]),child]};if(!node.children)return node;return{...node,children:node.children.map(c=>insertInto(c,pid,child))};}
 
 // ── STORAGE — localStorage for real browser ───────────────────────────────────
-const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",progress:"sl-prog",library:"sl-lib"};
+const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",progress:"sl-prog",library:"sl-lib",geminiKey:"sl-gemini-key"};
 function lsLoad(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
 function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
@@ -82,6 +82,33 @@ const snd={
   snapBack:  ()=>nburst(0.07,200,null,0.5,0.15),
   reveal:    ()=>{ntone(660,0.15,0.1);setTimeout(()=>ntone(880,0.2,0.08),80);},
 };
+
+// ── GEMINI API ────────────────────────────────────────────────────────────────
+async function callGemini(key,prompt){
+  const res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-goog-api-key":key},
+    body:JSON.stringify({
+      contents:[{parts:[{text:prompt}]}],
+      generationConfig:{responseMimeType:"application/json",temperature:0.7,maxOutputTokens:8192}
+    })
+  });
+  if(!res.ok){
+    let msg="";try{const e=await res.json();msg=e.error?.message||"";}catch{}
+    if(res.status===400)throw new Error("Invalid request — try rephrasing your topic.");
+    if(res.status===403)throw new Error("Invalid API key — check it at aistudio.google.com.");
+    if(res.status===429)throw new Error("Rate limit reached — wait a minute and try again.");
+    throw new Error(`Gemini error ${res.status}${msg?": "+msg:""}`);
+  }
+  const data=await res.json();
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!text){
+    const reason=data.candidates?.[0]?.finishReason;
+    if(reason==="SAFETY")throw new Error("Gemini flagged this topic for safety. Try rephrasing.");
+    throw new Error("Empty response from Gemini. Please try again.");
+  }
+  return JSON.parse(text);
+}
 
 function SpotifyBtn({children,onClick,variant="primary",size="md",fullWidth=false}){
   const bg=variant==="primary"?S.green:variant==="secondary"?"transparent":S.elevated;
@@ -186,11 +213,32 @@ function ImportModal({onClose,onImport}){
   );
 }
 
-function PromptContent({inline=false}){
+function PromptContent({inline=false,onImport}){
   const[topic,setTopic]=useState("");
   const[audience,setAudience]=useState("");
   const[difficulty,setDifficulty]=useState(null);
   const[copied,setCopied]=useState(null);
+  const[apiKey,setApiKey]=useState(()=>lsLoad(KEYS.geminiKey,""));
+  const[keyDraft,setKeyDraft]=useState("");
+  const[showKey,setShowKey]=useState(false);
+  const[generating,setGenerating]=useState(false);
+  const[genResult,setGenResult]=useState(null);
+  const[genError,setGenError]=useState(null);
+
+  const saveKey=()=>{const k=keyDraft.trim();if(!k)return;lsSave(KEYS.geminiKey,k);setApiKey(k);setKeyDraft("");hap.success();snd.reveal();};
+  const clearKey=()=>{lsSave(KEYS.geminiKey,"");setApiKey("");hap.medium();};
+
+  const generate=async()=>{
+    if(!topic.trim()){setGenError("Enter a topic first.");return;}
+    setGenerating(true);setGenError(null);setGenResult(null);
+    try{
+      const result=await callGemini(apiKey,buildMaster());
+      if(!Array.isArray(result.cards)||result.cards.length===0)throw new Error("No cards returned. Try a more specific topic.");
+      hap.success();snd.reveal();
+      setGenResult(result);
+    }catch(e){hap.error();setGenError(e.message);}
+    finally{setGenerating(false);}
+  };
 
   const diffNote={
     beginner:"Focus on difficulty 1 (Intro) cards. Use everyday language and analogies. Define every term you introduce.",
@@ -251,12 +299,17 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
     navigator.clipboard.writeText(text).then(()=>{hap.success();snd.reveal();setCopied(type);setTimeout(()=>setCopied(null),2200);}).catch(()=>{hap.error();});
   };
 
-  const steps=[
+  const copySteps=[
     ["1","Fill in the fields above (Topic is all you need)"],
     ["2","Copy a prompt — Master for better quality, Simple for quick iteration"],
     ["3","Paste it into Claude, ChatGPT, Gemini, or any LLM and run it"],
     ["4","Copy the entire JSON block the LLM outputs"],
     ["5",inline?"Tap Edit Library → Import JSON → paste → Import":"Close this — tap Edit Library → Import JSON → paste → Import"],
+  ];
+  const aiSteps=[
+    ["1","Enter a topic above (audience and difficulty are optional)"],
+    ["2","Click Generate with AI and wait a few seconds"],
+    ["3","Review the cards then tap Add to Library"],
   ];
 
   return(
@@ -277,31 +330,121 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
           ))}
         </div>
       </Field>
+
+      {/* ── Action buttons ── */}
       <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20}}>
-        <SpotifyBtn fullWidth onClick={()=>copy("master")}>
-          {copied==="master"?"Copied ✓":"Copy Master Prompt"}
-        </SpotifyBtn>
-        <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
-          {copied==="simple"?"Copied ✓":"Copy Simple Prompt"}
-        </SpotifyBtn>
-      </div>
-      <div style={{marginTop:20,background:S.card,borderRadius:6,padding:"16px 18px"}}>
-        <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>How to use</div>
-        {steps.map(([n,text])=>(
-          <div key={n} style={{display:"flex",gap:12,marginBottom:10,alignItems:"flex-start"}}>
-            <div style={{width:20,height:20,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:S.green,flexShrink:0,fontFamily:F,marginTop:1}}>{n}</div>
-            <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>{text}</div>
+        {apiKey&&!generating&&!genResult&&(
+          <SpotifyBtn fullWidth onClick={generate}>Generate with AI ✦</SpotifyBtn>
+        )}
+        {generating&&(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"14px",background:S.elevated,border:`1px solid ${S.border}`,borderRadius:500}}>
+            <div style={{width:14,height:14,border:`2px solid ${S.green}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+            <span style={{fontSize:14,fontWeight:700,color:S.subdued,fontFamily:F}}>Generating cards…</span>
           </div>
-        ))}
+        )}
+        {!generating&&(
+          <>
+            <SpotifyBtn fullWidth variant={apiKey?"secondary":"primary"} onClick={()=>copy("master")}>
+              {copied==="master"?"Copied ✓":"Copy Master Prompt"}
+            </SpotifyBtn>
+            <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
+              {copied==="simple"?"Copied ✓":"Copy Simple Prompt"}
+            </SpotifyBtn>
+          </>
+        )}
+      </div>
+
+      {/* ── Error ── */}
+      {genError&&(
+        <div style={{marginTop:12,padding:"10px 14px",background:`${S.danger}15`,border:`1px solid ${S.danger}44`,borderRadius:6,fontSize:13,color:S.danger,fontFamily:F,lineHeight:1.5}}>
+          {genError}
+        </div>
+      )}
+
+      {/* ── Generation result preview ── */}
+      {genResult&&(
+        <div style={{marginTop:16,background:S.card,borderRadius:6,padding:"16px 18px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10,fontFamily:F}}>Generated ✓</div>
+          <div style={{fontSize:15,fontWeight:700,color:S.white,fontFamily:F,marginBottom:4}}>{genResult.title||topic}</div>
+          <div style={{fontSize:12,color:S.subdued,fontFamily:F,marginBottom:12}}>{genResult.cards.length} cards</div>
+          {genResult.cards.slice(0,4).map(c=>(
+            <div key={c.id||c.order} style={{fontSize:12,color:S.faint,fontFamily:F,padding:"4px 0",borderBottom:`1px solid ${S.border}`}}>#{c.order} {c.title}</div>
+          ))}
+          {genResult.cards.length>4&&<div style={{fontSize:12,color:S.faint,fontFamily:F,marginTop:6}}>+{genResult.cards.length-4} more</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:14}}>
+            {onImport&&(
+              <SpotifyBtn fullWidth onClick={()=>{onImport(genResult);setGenResult(null);}}>Add to Library</SpotifyBtn>
+            )}
+            <SpotifyBtn fullWidth variant="secondary" onClick={()=>{setGenResult(null);generate();}}>Regenerate</SpotifyBtn>
+            <SpotifyBtn fullWidth variant="ghost" onClick={()=>setGenResult(null)}>Discard</SpotifyBtn>
+          </div>
+        </div>
+      )}
+
+      {/* ── How to use ── */}
+      {!genResult&&(
+        <div style={{marginTop:20,background:S.card,borderRadius:6,padding:"16px 18px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>
+            {apiKey?"How to use":"How to use"}
+          </div>
+          {(apiKey?aiSteps:copySteps).map(([n,text])=>(
+            <div key={n} style={{display:"flex",gap:12,marginBottom:10,alignItems:"flex-start"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:S.green,flexShrink:0,fontFamily:F,marginTop:1}}>{n}</div>
+              <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>{text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── API Key section ── */}
+      <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${S.border}`}}>
+        <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10,fontFamily:F}}>Gemini API Key</div>
+        {apiKey?(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:S.elevated,borderRadius:6,border:`1px solid ${S.green}33`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:S.green,flexShrink:0}}/>
+              <span style={{fontSize:13,color:S.green,fontFamily:F,fontWeight:700}}>Connected</span>
+            </div>
+            <button onClick={clearKey} style={{fontSize:12,color:S.subdued,background:"none",border:"none",cursor:"pointer",fontFamily:F,padding:"4px 8px"}}
+              onMouseEnter={e=>e.currentTarget.style.color=S.danger}
+              onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>Remove</button>
+          </div>
+        ):(
+          <>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <input
+                type={showKey?"text":"password"}
+                value={keyDraft}
+                onChange={e=>setKeyDraft(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&saveKey()}
+                placeholder="Paste API key here…"
+                style={{...inpStyle,flex:1}}
+                onFocus={e=>e.target.style.borderColor=S.white}
+                onBlur={e=>e.target.style.borderColor=S.border}
+              />
+              <button onClick={()=>setShowKey(p=>!p)} style={{background:S.card,border:`1px solid ${S.border}`,borderRadius:4,color:S.subdued,cursor:"pointer",padding:"0 12px",fontSize:12,fontFamily:F,flexShrink:0,transition:"color 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.color=S.white}
+                onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
+                {showKey?"Hide":"Show"}
+              </button>
+              <SpotifyBtn size="sm" onClick={saveKey}>Save</SpotifyBtn>
+            </div>
+            <div style={{fontSize:12,color:S.faint,fontFamily:F,lineHeight:1.7}}>
+              Free key at{" "}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{color:S.subdued,textDecoration:"underline"}}>aistudio.google.com</a>
+              {" "}· Stored on this device only · Sent directly to Google, never shared
+            </div>
+          </>
+        )}
       </div>
     </>
   );
 }
 
-function PromptModal({onClose}){
+function PromptModal({onClose,onImport}){
   return(
     <Modal title="Generate with AI" onClose={onClose} width={560}>
-      <PromptContent inline={false}/>
+      <PromptContent inline={false} onImport={onImport}/>
     </Modal>
   );
 }
@@ -426,7 +569,7 @@ function LibraryEditor({library,onSave,onClose}){
       {modal?.type==="topic"&&modal.node&&<TopicModal existing={modal.node} onSave={t=>renameNode(modal.node.id,t)} onClose={()=>setModal(null)}/>}
       {modal?.type==="cards"&&<CardSetManager topic={modal.node} onSave={saveCards} onClose={()=>setModal(null)}/>}
       {modal?.type==="import"&&<ImportModal onClose={()=>setModal(null)} onImport={handleImport}/>}
-      {modal?.type==="prompt"&&<PromptModal onClose={()=>setModal(null)}/>}
+      {modal?.type==="prompt"&&<PromptModal onClose={()=>setModal(null)} onImport={handleImport}/>}
     </>
   );
 }
@@ -655,6 +798,13 @@ export default function App(){
   },[]);
 
   const saveLibrary=useCallback((tree)=>{setLibrary(tree);lsSave(KEYS.library,tree);},[]);
+  const handleDirectImport=useCallback((data)=>{
+    setLibrary(prev=>{
+      const updated=rebuildPaths(insertInto(prev,"root",{...data,id:data.id||`topic-${uid()}`,type:"topic",path:data.path||[]}));
+      lsSave(KEYS.library,updated);
+      return updated;
+    });
+  },[]);
   const topics=library?flattenTopics(library):[];
   const currentCard=activeQueue[cardIndex];
   const totalCards=topics.reduce((s,t)=>s+t.cards.length,0);
@@ -728,7 +878,7 @@ export default function App(){
           {showPromptPanel&&(
             <div style={{background:S.elevated,border:`1px solid ${S.border}`,borderRadius:8,padding:"20px",marginBottom:24}}>
               <div style={{fontSize:13,fontWeight:700,color:S.green,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:16,fontFamily:F}}>Generate with AI</div>
-              <PromptContent inline/>
+              <PromptContent inline onImport={handleDirectImport}/>
             </div>
           )}
           <div style={{background:S.card,borderRadius:8,padding:"20px",marginBottom:24}}>
