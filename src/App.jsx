@@ -676,12 +676,11 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
   const[showCtx,setShowCtx]=useState(false);
   const drag=useRef({active:false,startX:0,startY:0});
   const done=useRef(false);
-  const THRESH=85,UP=-65;
+  const THRESH=85;
 
   const fire=useCallback((dir,dx,dy)=>{
     if(done.current)return;
     done.current=true;
-    if(dir==="up"){hap.light();snd.reveal();setShowCtx(true);done.current=false;return;}
     if(dir==="left"){hap.success();snd.swipeLeft();}else{hap.error();snd.swipeRight();}
     setFlyOut(dir==="left"?{x:-700,y:(dy||0)*0.3,rot:-18}:{x:700,y:(dy||0)*0.3,rot:18});
     setTimeout(()=>onSwipe(dir),280);
@@ -697,7 +696,7 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
       const[x,y]=pt(e);const dx=x-drag.current.startX,dy=y-drag.current.startY;
       const dist=Math.sqrt(dx*dx+dy*dy);
       if(dist>12&&Math.abs(dist-drag.current.lastFrictDist)>28){snd.friction();drag.current.lastFrictDist=dist;}
-      setPos({x:dx,y:dy,rot:dx*0.05});
+      setPos({x:dx,y:0,rot:dx*0.05});
     };
     const up=()=>{
       if(!drag.current.active)return;
@@ -705,7 +704,6 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
       setPos(p=>{
         if(p.x<-THRESH)fire("left",p.x,p.y);
         else if(p.x>THRESH)fire("right",p.x,p.y);
-        else if(p.y<UP)fire("up",p.x,p.y);
         else{hap.light();snd.snapBack();return{x:0,y:0,rot:0};}
         return p;
       });
@@ -726,7 +724,6 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
   const tr=flyOut?"transform 0.28s ease-in":drag.current?.active?"none":"transform 0.3s cubic-bezier(0.34,1.4,0.64,1)";
   const lOp=Math.min(1,Math.max(0,-pos.x/70));
   const rOp=Math.min(1,Math.max(0,pos.x/70));
-  const uOp=Math.min(1,Math.max(0,-pos.y/50));
   const dc=card.difficulty===1?S.d1:card.difficulty===2?S.d2:S.d3;
   const dl=card.difficulty===1?"Intro":card.difficulty===2?"Core":"Advanced";
 
@@ -736,7 +733,6 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
         <div style={{height:3,background:dc,width:"100%"}}/>
         {isTop&&lOp>0.08&&<div style={{position:"absolute",top:20,left:16,opacity:lOp,transform:"rotate(-8deg)",zIndex:10,border:`2px solid ${S.green}`,borderRadius:4,padding:"4px 14px",color:S.green,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Got it ✓</div>}
         {isTop&&rOp>0.08&&<div style={{position:"absolute",top:20,right:16,opacity:rOp,transform:"rotate(8deg)",zIndex:10,border:`2px solid ${S.danger}`,borderRadius:4,padding:"4px 14px",color:S.danger,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Again ↺</div>}
-        {isTop&&uOp>0.08&&<div style={{position:"absolute",top:16,left:"50%",transform:"translateX(-50%)",opacity:uOp,zIndex:10,border:`2px solid ${S.white}`,borderRadius:4,padding:"4px 14px",color:S.white,fontWeight:700,fontSize:14,fontFamily:F,pointerEvents:"none"}}>Deep dive ↑</div>}
         <div style={{padding:"20px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div style={{flex:1,paddingRight:12}}>
             <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:F}}>{card.topicTitle}</div>
@@ -777,9 +773,13 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
   );
 }
 
-function ActionBar({onLeft,onRight}){
+function ActionBar({onLeft,onRight,onBack,canBack}){
   return(
-    <div style={{display:"flex",gap:16,justifyContent:"center",padding:"20px 0 8px"}}>
+    <div style={{display:"flex",gap:12,justifyContent:"center",alignItems:"center",padding:"20px 0 8px"}}>
+      <button onClick={()=>{if(canBack){hap.light();onBack();}}}
+        style={{width:46,height:46,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,color:S.subdued,fontSize:20,cursor:canBack?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s,opacity 0.2s",opacity:canBack?1:0.3}}
+        onMouseEnter={e=>{if(canBack){e.currentTarget.style.background=S.card;e.currentTarget.style.transform="scale(1.08)";}}}
+        onMouseLeave={e=>{e.currentTarget.style.background=S.elevated;e.currentTarget.style.transform="scale(1)";}}>↩</button>
       <button onClick={()=>{hap.error();snd.swipeRight();onRight();}} style={{width:56,height:56,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,color:S.danger,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.15s,background 0.15s"}}
         onMouseEnter={e=>{e.currentTarget.style.background=S.card;e.currentTarget.style.transform="scale(1.08)";}}
         onMouseLeave={e=>{e.currentTarget.style.background=S.elevated;e.currentTarget.style.transform="scale(1)";}}>↺</button>
@@ -913,6 +913,7 @@ export default function App(){
   const[showQuickGenerate,setShowQuickGenerate]=useState(false);
   const[sidebarOpen,setSidebarOpen]=useState(false);
   const[themeName,setThemeName]=useState(_t);
+  const[cardHistory,setCardHistory]=useState([]);
 
   // ── load from localStorage on boot ─────────────────────────────────────────
   useEffect(()=>{
@@ -955,11 +956,13 @@ export default function App(){
     else cards=topic.cards;
     const queue=cards.map(c=>({...c,topicId:topic.id,topicTitle:topic.title}));
     const saved=mode==="normal"&&progressMap[topic.id]?progressMap[topic.id]:0;
+    setCardHistory([]);
     setActiveTopic(topic);setActiveQueue(queue);setCardIndex(Math.min(saved,Math.max(0,queue.length-1)));setScreen("learn");
   };
 
   const advance=useCallback((dir)=>{
     const card=activeQueue[cardIndex];if(!card)return;
+    setCardHistory(h=>[...h,{cardId:card.id,dir}]);
     if(dir==="left"){
       const nc={...completionMap,[card.id]:true};const nr=revisitIds.filter(id=>id!==card.id);
       setCompletionMap(nc);setRevisitIds(nr);lsSave(KEYS.completion,nc);lsSave(KEYS.revisit,nr);
@@ -973,6 +976,23 @@ export default function App(){
       const np={...progressMap,[card.topicId]:next};setProgressMap(np);lsSave(KEYS.progress,np);setCardIndex(next);
     }
   },[activeQueue,cardIndex,completionMap,revisitIds,progressMap]);
+
+  const goBack=useCallback(()=>{
+    if(!cardHistory.length)return;
+    const prev=cardHistory[cardHistory.length-1];
+    setCardHistory(h=>h.slice(0,-1));
+    if(prev.dir==="left"){
+      const nc={...completionMap};delete nc[prev.cardId];
+      setCompletionMap(nc);lsSave(KEYS.completion,nc);
+    }else if(prev.dir==="right"){
+      const nr=revisitIds.filter(id=>id!==prev.cardId);
+      setRevisitIds(nr);lsSave(KEYS.revisit,nr);
+    }
+    const prevIndex=cardIndex-1;
+    const prevCard=activeQueue[prevIndex];
+    if(prevCard){const np={...progressMap,[prevCard.topicId]:prevIndex};setProgressMap(np);lsSave(KEYS.progress,np);}
+    setCardIndex(prevIndex);
+  },[cardHistory,cardIndex,completionMap,revisitIds,progressMap,activeQueue]);
 
   const toggleConfused=useCallback((id)=>{
     const next=confusedIds.includes(id)?confusedIds.filter(x=>x!==id):[...confusedIds,id];
@@ -1081,7 +1101,7 @@ export default function App(){
           <div style={{position:"relative",height:500,marginTop:20}}>
             {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onConfused={()=>toggleConfused(c.id)} starred={starredIds.includes(c.id)} onStarred={()=>toggleStarred(c.id)} onSwipe={advance}/>;}).filter(Boolean)}
           </div>
-          <ActionBar onLeft={()=>advance("left")} onRight={()=>advance("right")}/>
+          <ActionBar onLeft={()=>advance("left")} onRight={()=>advance("right")} onBack={goBack} canBack={cardHistory.length>0}/>
           <div style={{textAlign:"center",fontSize:12,color:S.faint,marginTop:8}}>Drag or tap · progress saved</div>
         </div>
       )}
