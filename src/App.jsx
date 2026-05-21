@@ -35,14 +35,22 @@ const DEMO_DATA = {
   }]
 };
 
-const S = {
-  bg:"#1c1208",surface:"#251a0a",elevated:"#2e200e",card:"#3a2912",cardHover:"#43301a",
-  green:"#c8761a",greenHover:"#e08920",
-  white:"#f5e6cc",subdued:"#a88b6a",faint:"#5c4530",
-  danger:"#b83222",border:"rgba(200,118,26,0.18)",
-  d1:"#7daa52",d2:"#c8761a",d3:"#b83222",
-  star:"#e6b84a",
+const THEMES={
+  autumn:{bg:"#1c1208",surface:"#251a0a",elevated:"#2e200e",card:"#3a2912",cardHover:"#43301a",green:"#c8761a",greenHover:"#e08920",white:"#f5e6cc",subdued:"#a88b6a",faint:"#5c4530",danger:"#b83222",border:"rgba(200,118,26,0.18)",d1:"#7daa52",d2:"#c8761a",d3:"#b83222",star:"#e6b84a"},
+  midnight:{bg:"#0d0f18",surface:"#141720",elevated:"#1c2030",card:"#222840",cardHover:"#293050",green:"#5b8de8",greenHover:"#6b9df8",white:"#e8eeff",subdued:"#8892b0",faint:"#3a4060",danger:"#e05070",border:"rgba(91,141,232,0.18)",d1:"#7daa52",d2:"#5b8de8",d3:"#e05070",star:"#f0c040"},
+  forest:{bg:"#0a1209",surface:"#111a10",elevated:"#182418",card:"#1e2e1c",cardHover:"#253824",green:"#4a9e5c",greenHover:"#5ab86c",white:"#e0f0e0",subdued:"#7aaa80",faint:"#2a4030",danger:"#c04848",border:"rgba(74,158,92,0.18)",d1:"#7daa52",d2:"#4a9e5c",d3:"#c04848",star:"#d4a830"},
+  slate:{bg:"#0f1117",surface:"#161b27",elevated:"#1e2436",card:"#252d42",cardHover:"#2d3650",green:"#7c9ef0",greenHover:"#8eaef8",white:"#e8ebf8",subdued:"#8892b8",faint:"#3a4060",danger:"#e07070",border:"rgba(124,158,240,0.18)",d1:"#7daa52",d2:"#7c9ef0",d3:"#e07070",star:"#f0c060"},
+  obsidian:{bg:"#000000",surface:"#080808",elevated:"#101010",card:"#181818",cardHover:"#202020",green:"#d4a017",greenHover:"#e8b020",white:"#f0f0f0",subdued:"#808080",faint:"#303030",danger:"#cc3333",border:"rgba(255,255,255,0.10)",d1:"#7daa52",d2:"#d4a017",d3:"#cc3333",star:"#f0c030"},
 };
+const THEME_META=[
+  {id:"autumn",name:"Rustic Autumn",bg:"#1c1208",accent:"#c8761a"},
+  {id:"midnight",name:"Midnight",bg:"#0d0f18",accent:"#5b8de8"},
+  {id:"forest",name:"Forest",bg:"#0a1209",accent:"#4a9e5c"},
+  {id:"slate",name:"Slate",bg:"#0f1117",accent:"#7c9ef0"},
+  {id:"obsidian",name:"Obsidian",bg:"#000000",accent:"#d4a017"},
+];
+const _t=(()=>{try{const t=JSON.parse(localStorage.getItem("sl-theme"))||"autumn";if(typeof document!=="undefined")document.body.style.background=(THEMES[t]||THEMES.autumn).bg;return t;}catch{return"autumn";}})();
+const S={...(THEMES[_t]||THEMES.autumn)};
 const F = "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', Helvetica, Arial, sans-serif";
 
 const uid = () => Math.random().toString(36).slice(2,9);
@@ -57,6 +65,53 @@ function insertInto(node,pid,child){if(node.id===pid)return{...node,children:[..
 const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",starred:"sl-star",progress:"sl-prog",library:"sl-lib"};
 function lsLoad(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
 function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+// ── COMMUNITY DECKS — curated decks users can add to their library ────────────
+const COMMUNITY_DECKS=[
+  {
+    id:"community-stoicism",title:"Stoic Philosophy",
+    description:"Ancient wisdom for modern life — control, resilience, and living well.",
+    type:"topic",path:[],
+    cards:[
+      {id:"cs-1",order:1,title:"What Is Stoicism?",body:"Stoicism is a philosophy founded in ancient Greece that teaches we cannot control external events, only our responses to them. The goal is to live according to reason and virtue, regardless of circumstance.",context:"Stoicism was founded by Zeno of Citium around 300 BC and later developed by Epictetus, Marcus Aurelius, and Seneca. It wasn't originally an academic philosophy — it was a practical guide for living.",tags:["foundational"],difficulty:1},
+      {id:"cs-2",order:2,title:"The Dichotomy of Control",body:"Everything falls into two categories: what is 'up to us' (our judgments, desires, actions) and what is not (our body, reputation, wealth, others' opinions). Wisdom begins with knowing the difference.",context:"Epictetus — a former slave — made this the foundation of his teaching. His point: misery comes from wanting control over things you don't have. Freedom comes from focusing only on what you do have.",tags:["foundational","mechanism"],difficulty:1},
+      {id:"cs-3",order:3,title:"Negative Visualisation",body:"Periodically imagine losing the things you value — your health, relationships, possessions. This isn't pessimism; it's a technique for appreciating what you have before it's gone.",context:"The Stoics called this premeditatio malorum — premeditation of evils. Modern psychology confirms it: people who contemplate loss experience significantly more gratitude than those who simply list blessings.",tags:["technique"],difficulty:1},
+      {id:"cs-4",order:4,title:"Amor Fati — Love of Fate",body:"Amor fati means 'love of fate'. Not merely accepting what happens, but actively willing it — treating every obstacle as something to be desired, not merely endured.",context:"Marcus Aurelius: 'The impediment to action advances action. What stands in the way becomes the way.' This reframe doesn't change events; it changes what those events mean to you, which changes everything.",tags:["mindset","mechanism"],difficulty:2},
+      {id:"cs-5",order:5,title:"Memento Mori",body:"Memento mori — 'remember you will die' — is a Stoic practice of regularly contemplating mortality. Not morbidly, but as a device for prioritisation and presence.",context:"Roman generals returning from victory were followed by a slave whispering 'memento mori' to prevent arrogance. Confronting death clarifies what actually matters. Many people report that awareness of mortality focuses their attention and reduces trivial anxiety.",tags:["technique","mindset"],difficulty:2},
+      {id:"cs-6",order:6,title:"The Four Virtues",body:"The Stoics held that virtue is the only true good. The four cardinal virtues are: wisdom (knowing what is good), courage (acting rightly under adversity), justice (treating others fairly), and temperance (self-discipline).",context:"Crucially, the Stoics believed virtue is sufficient for happiness — external goods like wealth and health are 'preferred indifferents', nice to have but not necessary. This is a radical claim that most people find either liberating or frustrating.",tags:["foundational","values"],difficulty:2},
+      {id:"cs-7",order:7,title:"The View from Above",body:"Imagine looking down at your life from a great height — your city, your country, the planet. Your problems shrink to their actual size. This perspective exercise dissolves petty grievances instantly.",context:"Marcus Aurelius used this frequently in Meditations. Modern variations include the 'overview effect' reported by astronauts who say seeing Earth from space permanently changed their sense of proportion. The technique works even as a brief mental exercise.",tags:["technique","advanced"],difficulty:3},
+    ]
+  },
+  {
+    id:"community-finance",title:"Financial Literacy 101",
+    description:"Core money concepts every adult should understand — no jargon.",
+    type:"topic",path:[],
+    cards:[
+      {id:"cf-1",order:1,title:"Income vs Wealth",body:"Income is money flowing in each period. Wealth is accumulated assets minus liabilities. High income doesn't create wealth; the gap between what you earn and what you spend does.",context:"Many high earners remain financially fragile because they increase spending with every pay rise. Wealth is built by repeatedly choosing not to spend a portion of income — regardless of the amount.",tags:["foundational"],difficulty:1},
+      {id:"cf-2",order:2,title:"Compound Interest",body:"Compound interest is interest earned on interest. 10,000 growing at 10% per year becomes 25,937 in 10 years — not 20,000 — because each year's gains are added to the base.",context:"Einstein allegedly called compound interest the eighth wonder of the world. The key insight is the exponential curve: returns feel slow at first and then accelerate dramatically. Starting 10 years earlier roughly doubles the end result.",tags:["mechanism","foundational"],difficulty:1},
+      {id:"cf-3",order:3,title:"Assets vs Liabilities",body:"An asset puts money into your pocket. A liability takes money out. A house you live in costs you money every month — it's a liability until sold at a profit. A rental property that generates income is an asset.",context:"Robert Kiyosaki's framing from Rich Dad Poor Dad is blunt but useful: rich people buy assets; others buy liabilities they think are assets. The car, the boat, the designer clothing — all liabilities. Income-generating things — assets.",tags:["foundational","mechanism"],difficulty:1},
+      {id:"cf-4",order:4,title:"Inflation",body:"Inflation is the general rise in prices over time. At 6% annual inflation, money loses half its purchasing power in about 12 years. Cash sitting in a low-interest account loses real value every year.",context:"The 'Rule of 72' estimates how long it takes to halve purchasing power: divide 72 by the inflation rate. At 6%, about 12 years. This is why holding large amounts of cash long-term is a form of losing money slowly.",tags:["mechanism","foundational"],difficulty:1},
+      {id:"cf-5",order:5,title:"Opportunity Cost",body:"Every financial decision has an opportunity cost — what you give up by not choosing the alternative. Buying a car for a large sum isn't just spending that money; it's also not investing that amount for 20 years.",context:"Opportunity cost is invisible, which makes it easy to ignore. But wealth-building requires making it visible. The question is never just 'can I afford this?' It's 'what am I giving up by spending this?'",tags:["concept","mechanism"],difficulty:2},
+      {id:"cf-6",order:6,title:"Diversification",body:"Diversification means spreading investments across different assets so poor performance in one doesn't devastate the whole. 'Don't put all your eggs in one basket' is the oldest financial advice for a reason.",context:"Diversification reduces risk without necessarily reducing expected returns — which is why economists call it 'the only free lunch in finance'. A mix of stocks, bonds, and other assets historically produces smoother returns than any single asset.",tags:["strategy","mechanism"],difficulty:2},
+      {id:"cf-7",order:7,title:"Emergency Fund",body:"An emergency fund is 3–6 months of living expenses held in liquid, accessible savings. Its purpose is to absorb shocks — job loss, medical bills, major repairs — without forced selling of investments.",context:"Most financial stress is liquidity stress, not wealth stress. People with adequate emergency funds make calmer decisions. Without one, a single unexpected expense can trigger a spiral: credit card debt → high interest → harder to save → no fund → more vulnerability.",tags:["foundational","strategy"],difficulty:1},
+      {id:"cf-8",order:8,title:"Time Value of Money",body:"A unit of money today is worth more than the same unit tomorrow because today's money can be invested and grow. This principle underpins all of finance — loans, investments, valuations, retirement planning.",context:"The time value of money explains why paying off high-interest debt early is so powerful, why starting to invest young matters so much, and why buying on credit costs more than paying cash. Every delayed decision has a calculable cost.",tags:["foundational","mechanism"],difficulty:2},
+    ]
+  },
+  {
+    id:"community-publicspeaking",title:"The Art of Public Speaking",
+    description:"Speak clearly, connect with any audience, and handle the nerves.",
+    type:"topic",path:[],
+    cards:[
+      {id:"cp-1",order:1,title:"Why It Matters More Than You Think",body:"Public speaking is consistently ranked as one of the top skills for career advancement and leadership. The ability to communicate ideas clearly in front of others amplifies everything else you know how to do.",context:"Warren Buffett has said that the best investment he ever made was a Dale Carnegie public speaking course at age 20. Communication is a force multiplier — it makes your expertise visible and actionable to others.",tags:["foundational"],difficulty:1},
+      {id:"cp-2",order:2,title:"Anxiety Is Normal — Use It",body:"Speaking anxiety affects approximately 75% of people. The physical symptoms — racing heart, dry mouth, shaky hands — are identical to excitement. Reframing 'I'm nervous' as 'I'm excited' measurably improves performance.",context:"Research by Alison Wood Brooks at Harvard found that telling yourself 'I am excited' before a high-stakes situation outperforms 'I am calm' on objective performance measures. Anxiety can't be turned off; it can be redirected.",tags:["mindset","foundational"],difficulty:1},
+      {id:"cp-3",order:3,title:"Know Your Audience",body:"Every speech is a gift to the audience, not a performance for yourself. Before preparing content, ask: what does this audience already know? What do they need? What will make them care?",context:"The most common mistake in presentations is failing to translate expertise into audience-relevant terms. An engineer presenting to executives needs a different structure than one presenting to peers. Audience analysis is the first step, not the last.",tags:["foundational","technique"],difficulty:1},
+      {id:"cp-4",order:4,title:"The Rule of Three",body:"Information delivered in threes is significantly more memorable than any other grouping. 'Life, liberty, and the pursuit of happiness.' Three points create rhythm, completeness, and retention.",context:"The rule of three works because the human brain naturally groups information in patterns. Three is the minimum for pattern recognition and the maximum that can be held comfortably without notes. Most great speeches have three main ideas.",tags:["technique","mechanism"],difficulty:1},
+      {id:"cp-5",order:5,title:"The Power of the Pause",body:"Strategic silence is one of the most underused tools in speaking. Pausing before a key point creates anticipation. Pausing after creates space for the idea to land. Most speakers fill silence with 'um' and 'uh' out of discomfort.",context:"Research shows audiences perceive speakers who pause as more competent and confident, not less. The pause feels long only to the speaker — the audience experiences it as gravitas. Practice by rehearsing with a deliberate one-second gap after every sentence.",tags:["technique"],difficulty:2},
+      {id:"cp-6",order:6,title:"Eye Contact That Connects",body:"Effective eye contact means holding a genuine connection with one person for a complete thought (3–5 seconds) before moving to another. Rapid scanning or staring at slides signals disengagement and reduces trust.",context:"One-person-per-thought eye contact transforms a speech into a series of individual conversations. The person you're looking at feels personally addressed. The audience around them feel it too — it creates a sense of intimacy even in large rooms.",tags:["technique"],difficulty:2},
+      {id:"cp-7",order:7,title:"Handling Questions",body:"Repeat or paraphrase every question before answering — it buys thinking time, ensures accuracy, and ensures the whole audience heard it. Answer the question asked, not the question you wish they'd asked.",context:"The phrase 'That's a great question' is now widely recognised as a stalling tactic. Instead: repeat the question, take a brief pause, then answer directly. If you don't know, say so — it builds more credibility than a vague answer.",tags:["technique","advanced"],difficulty:3},
+    ]
+  },
+];
 
 // ── HAPTICS — real iOS haptics via navigator.vibrate ──────────────────────────
 const hap={
@@ -148,13 +203,13 @@ function Field({label,children}){
   );
 }
 
-const inpStyle={background:S.card,border:`1px solid ${S.border}`,borderRadius:4,color:S.white,fontSize:15,padding:"12px 16px",width:"100%",fontFamily:F,outline:"none",boxSizing:"border-box",transition:"border-color 0.2s"};
+const inpStyle=()=>({background:S.card,border:`1px solid ${S.border}`,borderRadius:4,color:S.white,fontSize:15,padding:"12px 16px",width:"100%",fontFamily:F,outline:"none",boxSizing:"border-box",transition:"border-color 0.2s"});
 
 function DirectoryModal({existing,onSave,onClose}){
   const[t,setT]=useState(existing?.title||"");
   return(
     <Modal title={existing?"Edit folder":"New folder"} onClose={onClose}>
-      <Field label="Folder name"><input style={inpStyle} value={t} onChange={e=>setT(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Folder name"><input style={inpStyle()} value={t} onChange={e=>setT(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
       <SpotifyBtn fullWidth onClick={()=>{if(t.trim()){hap.success();onSave(t.trim());}}}>{existing?"Save":"Create"}</SpotifyBtn>
     </Modal>
   );
@@ -164,7 +219,7 @@ function TopicModal({existing,onSave,onClose}){
   const[t,setT]=useState(existing?.title||"");
   return(
     <Modal title={existing?"Edit topic":"New topic"} onClose={onClose}>
-      <Field label="Topic name"><input style={inpStyle} value={t} onChange={e=>setT(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Topic name"><input style={inpStyle()} value={t} onChange={e=>setT(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
       <SpotifyBtn fullWidth onClick={()=>{if(t.trim()){hap.success();onSave(t.trim());}}}>{existing?"Save":"Create"}</SpotifyBtn>
     </Modal>
   );
@@ -176,13 +231,13 @@ function CardModal({card,onSave,onClose}){
   const[context,setContext]=useState(card?.context||"");
   const[tags,setTags]=useState((card?.tags||[]).join(", "));
   const[diff,setDiff]=useState(card?.difficulty||1);
-  const ta={...inpStyle,height:88,resize:"vertical"};
+  const ta={...inpStyle(),height:88,resize:"vertical"};
   return(
     <Modal title={card?.id?"Edit card":"New card"} onClose={onClose} width={560}>
-      <Field label="Title"><input style={inpStyle} value={title} onChange={e=>setTitle(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Title"><input style={inpStyle()} value={title} onChange={e=>setTitle(e.target.value)} autoFocus onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
       <Field label="Body"><textarea style={ta} value={body} onChange={e=>setBody(e.target.value)} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
       <Field label="Context (deep dive)"><textarea style={ta} value={context} onChange={e=>setContext(e.target.value)} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
-      <Field label="Tags (comma separated)"><input style={inpStyle} value={tags} onChange={e=>setTags(e.target.value)} placeholder="foundational, mechanism" onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
+      <Field label="Tags (comma separated)"><input style={inpStyle()} value={tags} onChange={e=>setTags(e.target.value)} placeholder="foundational, mechanism" onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/></Field>
       <Field label="Difficulty">
         <div style={{display:"flex",gap:8}}>
           {[["Intro",1,S.d1],["Core",2,S.d2],["Advanced",3,S.d3]].map(([l,d,c])=>(
@@ -203,7 +258,7 @@ function ImportModal({onClose,onImport}){
   return(
     <Modal title="Import JSON" onClose={onClose}>
       <p style={{fontSize:14,color:S.subdued,marginBottom:16,fontFamily:F}}>Paste a topic object with a cards array.</p>
-      <textarea value={text} onChange={e=>setText(e.target.value)} style={{...inpStyle,height:180,resize:"vertical",fontFamily:"monospace",fontSize:12}} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+      <textarea value={text} onChange={e=>setText(e.target.value)} style={{...inpStyle(),height:180,resize:"vertical",fontFamily:"monospace",fontSize:12}} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
       {err&&<p style={{color:S.danger,fontSize:13,margin:"8px 0",fontFamily:F}}>{err}</p>}
       <div style={{display:"flex",gap:10,marginTop:16}}>
         <SpotifyBtn variant="ghost" onClick={onClose}>Cancel</SpotifyBtn>
@@ -303,10 +358,10 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
   return(
     <>
       <Field label="Topic">
-        <input style={inpStyle} value={topic} onChange={e=>setTopic(e.target.value)} placeholder='e.g. How transformers work' autoFocus={!inline} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+        <input style={inpStyle()} value={topic} onChange={e=>setTopic(e.target.value)} placeholder='e.g. How transformers work' autoFocus={!inline} onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
       </Field>
       <Field label="Audience (optional)">
-        <input style={inpStyle} value={audience} onChange={e=>setAudience(e.target.value)} placeholder='e.g. software engineers with no ML background' onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
+        <input style={inpStyle()} value={audience} onChange={e=>setAudience(e.target.value)} placeholder='e.g. software engineers with no ML background' onFocus={e=>e.target.style.borderColor=S.white} onBlur={e=>e.target.style.borderColor=S.border}/>
       </Field>
       <Field label="Difficulty (optional)">
         <div style={{display:"flex",gap:8}}>
@@ -540,6 +595,76 @@ function LibraryEditor({library,onSave,onClose}){
       {modal?.type==="cards"&&<CardSetManager topic={modal.node} onSave={saveCards} onClose={()=>setModal(null)}/>}
       {modal?.type==="import"&&<ImportModal onClose={()=>setModal(null)} onImport={handleImport}/>}
       {modal?.type==="prompt"&&<PromptModal onClose={()=>setModal(null)} onImport={handleImport}/>}
+    </>
+  );
+}
+
+function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck}){
+  const addedIds=new Set(flattenTopics(library||{id:"root",type:"directory",children:[]}).map(t=>t.id));
+  return(
+    <>
+      {/* Backdrop */}
+      <div onClick={()=>{hap.light();onClose();}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,pointerEvents:open?"auto":"none",opacity:open?1:0,transition:"opacity 0.28s"}}/>
+      {/* Panel */}
+      <div style={{position:"fixed",top:0,left:0,height:"100%",width:272,background:S.surface,borderRight:`1px solid ${S.border}`,zIndex:301,transform:open?"translateX(0)":"translateX(-280px)",transition:"transform 0.28s cubic-bezier(0.4,0,0.2,1)",overflowY:"auto",display:"flex",flexDirection:"column"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"20px 16px 16px",borderBottom:`1px solid ${S.border}`,flexShrink:0}}>
+          <img src="/icon-192.png" alt="Deckwise" style={{width:28,height:28,borderRadius:6}}/>
+          <span style={{fontSize:16,fontWeight:700,color:S.white,fontFamily:F,flex:1,letterSpacing:"-0.01em"}}>Deckwise</span>
+          <button onClick={()=>{hap.light();onClose();}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:20,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0}}
+            onMouseEnter={e=>e.currentTarget.style.color=S.white}
+            onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+        </div>
+
+        {/* ── Color Profiles ── */}
+        <div style={{padding:"20px 16px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>Color Profiles</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {THEME_META.map(tm=>{
+              const active=themeName===tm.id;
+              return(
+                <button key={tm.id} onClick={()=>{onTheme(tm.id);}}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:6,background:active?`${tm.accent}18`:"transparent",border:`1px solid ${active?tm.accent:S.border}`,cursor:"pointer",textAlign:"left",transition:"all 0.15s",width:"100%"}}>
+                  {/* Swatch */}
+                  <div style={{width:32,height:32,borderRadius:7,background:tm.bg,border:`2px solid ${tm.accent}`,flexShrink:0,position:"relative",overflow:"hidden"}}>
+                    <div style={{position:"absolute",bottom:0,right:0,width:"52%",height:"52%",background:tm.accent,borderTopLeftRadius:5}}/>
+                  </div>
+                  <span style={{fontSize:13,fontWeight:700,color:active?S.white:S.subdued,fontFamily:F,flex:1,transition:"color 0.15s"}}>{tm.name}</span>
+                  {active&&<span style={{color:tm.accent,fontSize:15,flexShrink:0}}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{height:1,background:S.border,margin:"0 16px"}}/>
+
+        {/* ── Community Decks ── */}
+        <div style={{padding:"20px 16px",flex:1}}>
+          <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4,fontFamily:F}}>Community Decks</div>
+          <div style={{fontSize:12,color:S.faint,fontFamily:F,marginBottom:16,lineHeight:1.5}}>Curated decks you can add to your library</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {COMMUNITY_DECKS.map(deck=>{
+              const added=addedIds.has(deck.id);
+              return(
+                <div key={deck.id} style={{background:S.elevated,borderRadius:8,padding:"14px",border:`1px solid ${S.border}`}}>
+                  <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,marginBottom:3}}>{deck.title}</div>
+                  <div style={{fontSize:12,color:S.subdued,fontFamily:F,marginBottom:2,lineHeight:1.5}}>{deck.description}</div>
+                  <div style={{fontSize:11,color:S.faint,fontFamily:F,marginBottom:12}}>{deck.cards.length} cards</div>
+                  <button
+                    onClick={()=>{if(!added){hap.success();snd.reveal();onAddDeck(deck);}}}
+                    style={{width:"100%",padding:"8px 0",borderRadius:500,background:added?`${S.green}18`:"transparent",border:`1px solid ${added?S.green:S.border}`,color:added?S.green:S.subdued,cursor:added?"default":"pointer",fontSize:12,fontWeight:700,fontFamily:F,transition:"all 0.15s"}}
+                    onMouseEnter={e=>{if(!added){e.currentTarget.style.borderColor=S.subdued;e.currentTarget.style.color=S.white;}}}
+                    onMouseLeave={e=>{if(!added){e.currentTarget.style.borderColor=S.border;e.currentTarget.style.color=S.subdued;}}}>
+                    {added?"Added ✓":"Add to Library"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </>
   );
 }
@@ -786,6 +911,8 @@ export default function App(){
   const[showEditor,setShowEditor]=useState(false);
   const[showPromptPanel,setShowPromptPanel]=useState(false);
   const[showQuickGenerate,setShowQuickGenerate]=useState(false);
+  const[sidebarOpen,setSidebarOpen]=useState(false);
+  const[themeName,setThemeName]=useState(_t);
 
   // ── load from localStorage on boot ─────────────────────────────────────────
   useEffect(()=>{
@@ -796,6 +923,14 @@ export default function App(){
     setProgressMap(lsLoad(KEYS.progress,{}));
     setLibrary(lsLoad(KEYS.library,null)||DEMO_DATA);
     setReady(true);
+  },[]);
+
+  const switchTheme=useCallback((name)=>{
+    Object.assign(S,THEMES[name]||THEMES.autumn);
+    document.body.style.background=S.bg;
+    document.documentElement.style.background=S.bg;
+    setThemeName(name);
+    lsSave("sl-theme",name);
   },[]);
 
   const saveLibrary=useCallback((tree)=>{setLibrary(tree);lsSave(KEYS.library,tree);},[]);
@@ -874,7 +1009,12 @@ export default function App(){
       {screen==="home"&&(
         <div style={{maxWidth:520,margin:"0 auto",padding:"24px 16px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showPromptPanel?16:28}}>
-            <img src="/icon-192.png" alt="Deckwise" style={{width:36,height:36,borderRadius:8}}/>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <button onClick={()=>{hap.light();setSidebarOpen(true);}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:20,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",transition:"color 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.color=S.white}
+                onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>☰</button>
+              <img src="/icon-192.png" alt="Deckwise" style={{width:36,height:36,borderRadius:8}}/>
+            </div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button onClick={()=>{hap.light();setShowPromptPanel(p=>!p);}} style={{background:showPromptPanel?`${S.green}18`:"transparent",border:`1px solid ${showPromptPanel?S.green:S.border}`,color:showPromptPanel?S.green:S.subdued,borderRadius:500,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s",whiteSpace:"nowrap"}}
                 onMouseEnter={e=>{if(!showPromptPanel){e.currentTarget.style.borderColor=S.subdued;e.currentTarget.style.color=S.white;}}}
@@ -954,6 +1094,7 @@ export default function App(){
 
       {showEditor&&library&&<LibraryEditor library={library} onSave={saveLibrary} onClose={()=>setShowEditor(false)}/>}
       {showQuickGenerate&&<PromptModal onClose={()=>setShowQuickGenerate(false)} onImport={handleDirectImport}/>}
+      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport}/>
     </div>
   );
 }
