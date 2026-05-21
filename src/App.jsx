@@ -3,20 +3,19 @@ import { useState, useRef, useEffect, useCallback } from "react";
 const DEMO_DATA = {
   id:"root",title:"My Library",type:"directory",
   children:[{
-    id:"nn",title:"Neural Networks",type:"directory",
-    children:[
-      {id:"nn-basics",title:"Fundamentals",type:"topic",path:["Neural Networks"],cards:[
-        {id:"nn-1",order:1,title:"What is a Neural Network?",body:"A neural network is a system of interconnected nodes inspired by biological neurons. Each node receives inputs, applies a weight, and passes a signal forward.",context:"Think of it like a series of filters — each layer extracts increasingly abstract patterns. A photo → edges → shapes → faces.",tags:["foundational"],difficulty:1},
-        {id:"nn-2",order:2,title:"Neurons & Weights",body:"Each neuron multiplies its input by a weight and adds a bias. The result passes through an activation function that decides whether the neuron fires.",context:"Weights are the memory of a network. Initially random, they get refined through training. A weight of 0 means ignore this input.",tags:["foundational"],difficulty:1},
-        {id:"nn-3",order:3,title:"Activation Functions",body:"Activation functions introduce non-linearity. Without them, a deep network collapses into a single linear transformation. Common ones: ReLU, Sigmoid, Tanh.",context:"ReLU is the most popular: output = max(0, x). Simple, fast, avoids the vanishing gradient problem.",tags:["core-concept"],difficulty:2},
-        {id:"nn-4",order:4,title:"Layers: Input, Hidden, Output",body:"Networks have layers: Input (raw data), Hidden (learned representations), Output (predictions). Depth = number of hidden layers.",context:"More layers = more capacity to learn complex patterns. But more layers means harder to train.",tags:["architecture"],difficulty:2},
-        {id:"nn-5",order:5,title:"Forward Pass",body:"During a forward pass, data flows left to right through the network. Each layer transforms the data using weights and activation functions.",context:"The forward pass is inference. Training consists of millions of forward passes, each followed by a backward pass.",tags:["mechanism"],difficulty:2},
-      ]},
-      {id:"backprop",title:"Backpropagation",type:"topic",path:["Neural Networks"],cards:[
-        {id:"bp-1",order:1,title:"The Learning Signal",body:"After a forward pass, we compare the prediction to the true answer using a loss function. The loss is a single number we want to minimize.",context:"Loss functions: MSE for regression, cross-entropy for classification.",tags:["foundational"],difficulty:2},
-        {id:"bp-2",order:2,title:"Gradients & Chain Rule",body:"Backpropagation computes how much each weight contributed to the error using the chain rule. Error signals flow backward through the network.",context:"The gradient points toward steepest increase of loss. We go opposite — gradient descent.",tags:["mechanism"],difficulty:3},
-        {id:"bp-3",order:3,title:"Gradient Descent",body:"We update each weight by subtracting a fraction of its gradient. That fraction is the learning rate — a hyperparameter controlling step size.",context:"Too high: weights overshoot, training diverges. Too low: painfully slow.",tags:["optimization"],difficulty:3},
-      ]}
+    id:"learn",title:"How to Learn Anything",type:"topic",path:[],cards:[
+      {id:"l-1",order:1,title:"Why Most Studying Fails",body:"Rereading, highlighting, and passive review feel productive but produce little retention. The brain strengthens memories through retrieval, not exposure. Effort during recall is the signal for long-term storage.",context:"The 'fluency illusion' tricks you — familiar material feels learned because it's easy to read, not because it's encoded. Recognising a concept is far easier than recalling it from scratch.",tags:["foundational"],difficulty:1},
+      {id:"l-2",order:2,title:"Active Recall",body:"Active recall means retrieving information from memory before looking it up. Closing your notes and answering questions from scratch is more effective than re-reading the same page three times.",context:"Each retrieval attempt strengthens the memory trace and identifies gaps. The harder the retrieval, the stronger the encoding — this is called the 'desirable difficulty' principle.",tags:["foundational","technique"],difficulty:1},
+      {id:"l-3",order:3,title:"The Forgetting Curve",body:"Without review, you forget roughly 70% of new information within 24 hours. The curve is steep initially, then flattens. Each review resets it — and raises the floor slightly higher.",context:"Hermann Ebbinghaus mapped this in 1885 by memorising nonsense syllables. The curve shape is consistent across subjects and people, though the slope varies with meaningfulness of material.",tags:["mechanism"],difficulty:1},
+      {id:"l-4",order:4,title:"Spaced Repetition",body:"Spacing reviews out over increasing intervals dramatically slows forgetting. Instead of cramming once, you review after 1 day, then 3 days, then a week, then a month.",context:"Spaced repetition exploits the forgetting curve deliberately — you review just before you would forget. Apps like Anki calculate these intervals automatically using the SM-2 algorithm.",tags:["technique","foundational"],difficulty:1},
+      {id:"l-5",order:5,title:"Interleaving",body:"Mixing different topics or problem types in a single study session improves long-term retention, even though it feels harder and slower than blocking one topic at a time.",context:"Blocked practice builds fluency within a session. Interleaved practice builds discrimination — the ability to choose the right approach. This gap matters in real-world application.",tags:["technique"],difficulty:2},
+      {id:"l-6",order:6,title:"The Feynman Technique",body:"To test real understanding, explain a concept as if teaching it to someone with no background. Where you stumble or use jargon is where your understanding has gaps.",context:"Named after physicist Richard Feynman, who credited his insight to his inability to understand something until he could explain it simply. 'If you can't explain it simply, you don't understand it well enough.'",tags:["technique","self-testing"],difficulty:1},
+      {id:"l-7",order:7,title:"Chunking",body:"Chunking groups individual pieces of information into meaningful units. Experts see chess positions as patterns, not individual pieces — this is chunking in action.",context:"Working memory holds roughly 4 items at once. Chunking compresses information so a single 'slot' holds a rich concept. Mastery in any domain is largely the accumulation of useful chunks.",tags:["mechanism","foundational"],difficulty:2},
+      {id:"l-8",order:8,title:"Elaborative Interrogation",body:"Asking 'why is this true?' and 'how does this connect to what I already know?' deepens encoding. Shallow processing stores isolated facts; deep processing builds connected knowledge.",context:"Elaboration forces you to construct meaning rather than copy it. The more connections a memory has to existing knowledge, the more retrieval paths exist — making it harder to forget.",tags:["technique"],difficulty:2},
+      {id:"l-9",order:9,title:"The Illusion of Competence",body:"Familiarity masquerades as knowledge. If you can follow an explanation without confusion, you may feel you understand it — but following is passive, not generative.",context:"Testing yourself breaks the illusion. If you can't produce the explanation unprompted, you don't own the knowledge yet. This is why worked examples should always be followed by independent attempts.",tags:["pitfall","self-testing"],difficulty:2},
+      {id:"l-10",order:10,title:"Metacognition",body:"Metacognition is thinking about your own thinking — monitoring whether you actually understand something versus just feeling like you do. Strong learners constantly audit their own comprehension.",context:"Poor metacognition is why students often study the wrong things before exams. Calibration — accurately sensing what you know and don't know — is a trainable skill, not a fixed trait.",tags:["foundational","self-testing"],difficulty:2},
+      {id:"l-11",order:11,title:"Transfer: The Real Goal",body:"Transfer is applying knowledge in new contexts — the ultimate test of understanding. Most studying optimises for recognition on familiar problems, not transfer to novel ones.",context:"Near transfer (similar context) is easier than far transfer (different domain). Building abstract principles, not just specific examples, is what enables far transfer. Ask 'what general rule does this illustrate?'",tags:["advanced","mechanism"],difficulty:3},
+      {id:"l-12",order:12,title:"Building the Learning Habit",body:"Consistency beats intensity. Thirty minutes of daily deliberate practice outperforms a weekend cram. The key variable is not total hours but regularity of retrieval and review.",context:"Habits reduce the decision cost of starting. Anchor study sessions to existing routines — after coffee, before dinner — and keep the session short enough to start without resistance. The session length expands naturally.",tags:["habit","foundational"],difficulty:1},
     ]
   }]
 };
@@ -741,6 +740,7 @@ export default function App(){
   const[activeQueue,setActiveQueue]=useState([]);
   const[showEditor,setShowEditor]=useState(false);
   const[showPromptPanel,setShowPromptPanel]=useState(false);
+  const[showQuickGenerate,setShowQuickGenerate]=useState(false);
 
   // ── load from localStorage on boot ─────────────────────────────────────────
   useEffect(()=>{
@@ -855,7 +855,12 @@ export default function App(){
             )}
           </div>
           {library&&<DirectoryNode node={library} depth={0} onSelect={startTopic} completionMap={completionMap} progressMap={progressMap}/>}
-          <div style={{marginTop:28,background:S.card,borderRadius:8,padding:"16px 20px"}}>
+          <div style={{marginTop:20,padding:"20px",background:S.elevated,borderRadius:8,border:`1px solid ${S.border}`,textAlign:"center"}}>
+            <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,marginBottom:4}}>Generate a topic with AI</div>
+            <div style={{fontSize:13,color:S.subdued,fontFamily:F,marginBottom:16}}>Turn any subject into a ready-to-swipe card deck</div>
+            <SpotifyBtn fullWidth onClick={()=>{hap.medium();setShowQuickGenerate(true);}}>Generate with AI ✦</SpotifyBtn>
+          </div>
+          <div style={{marginTop:12,background:S.card,borderRadius:8,padding:"16px 20px"}}>
             <div style={{fontSize:13,fontWeight:700,color:S.subdued,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:14}}>How to swipe</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {[["← Left","Got it ✓",S.green],["→ Right","Review ↺",S.danger],["↑ Up","Deep dive",S.white],["Flag btn","Research",S.subdued]].map(([k,v,c])=>(
@@ -891,6 +896,7 @@ export default function App(){
       )}
 
       {showEditor&&library&&<LibraryEditor library={library} onSave={saveLibrary} onClose={()=>setShowEditor(false)}/>}
+      {showQuickGenerate&&<PromptModal onClose={()=>setShowQuickGenerate(false)} onImport={handleDirectImport}/>}
     </div>
   );
 }
