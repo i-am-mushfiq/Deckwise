@@ -39,7 +39,7 @@ function findAndDelete(node,id){if(!node.children)return node;return{...node,chi
 function insertInto(node,pid,child){if(node.id===pid)return{...node,children:[...(node.children||[]),child]};if(!node.children)return node;return{...node,children:node.children.map(c=>insertInto(c,pid,child))};}
 
 // ── STORAGE — localStorage for real browser ───────────────────────────────────
-const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",progress:"sl-prog",library:"sl-lib",geminiKey:"sl-gemini-key"};
+const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",progress:"sl-prog",library:"sl-lib"};
 function lsLoad(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
 function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
@@ -83,31 +83,16 @@ const snd={
   reveal:    ()=>{ntone(660,0.15,0.1);setTimeout(()=>ntone(880,0.2,0.08),80);},
 };
 
-// ── GEMINI API ────────────────────────────────────────────────────────────────
-async function callGemini(key,prompt){
-  const res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",{
+// ── AI GENERATION — proxied through /api/generate (key never touches client) ──
+async function generateCards(prompt){
+  const res=await fetch("/api/generate",{
     method:"POST",
-    headers:{"Content-Type":"application/json","x-goog-api-key":key},
-    body:JSON.stringify({
-      contents:[{parts:[{text:prompt}]}],
-      generationConfig:{responseMimeType:"application/json",temperature:0.7,maxOutputTokens:8192}
-    })
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({prompt})
   });
-  if(!res.ok){
-    let msg="";try{const e=await res.json();msg=e.error?.message||"";}catch{}
-    if(res.status===400)throw new Error("Invalid request — try rephrasing your topic.");
-    if(res.status===403)throw new Error("Invalid API key — check it at aistudio.google.com.");
-    if(res.status===429)throw new Error("Rate limit reached — wait a minute and try again.");
-    throw new Error(`Gemini error ${res.status}${msg?": "+msg:""}`);
-  }
   const data=await res.json();
-  const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if(!text){
-    const reason=data.candidates?.[0]?.finishReason;
-    if(reason==="SAFETY")throw new Error("Gemini flagged this topic for safety. Try rephrasing.");
-    throw new Error("Empty response from Gemini. Please try again.");
-  }
-  return JSON.parse(text);
+  if(!res.ok)throw new Error(data.error||`Error ${res.status}`);
+  return data;
 }
 
 function SpotifyBtn({children,onClick,variant="primary",size="md",fullWidth=false}){
@@ -218,22 +203,15 @@ function PromptContent({inline=false,onImport}){
   const[audience,setAudience]=useState("");
   const[difficulty,setDifficulty]=useState(null);
   const[copied,setCopied]=useState(null);
-  const[apiKey,setApiKey]=useState(()=>lsLoad(KEYS.geminiKey,""));
-  const[keyDraft,setKeyDraft]=useState("");
-  const[showKey,setShowKey]=useState(false);
   const[generating,setGenerating]=useState(false);
   const[genResult,setGenResult]=useState(null);
   const[genError,setGenError]=useState(null);
-
-  const saveKey=()=>{const k=keyDraft.trim();if(!k)return;lsSave(KEYS.geminiKey,k);setApiKey(k);setKeyDraft("");hap.success();snd.reveal();};
-  const clearKey=()=>{lsSave(KEYS.geminiKey,"");setApiKey("");hap.medium();};
 
   const generate=async()=>{
     if(!topic.trim()){setGenError("Enter a topic first.");return;}
     setGenerating(true);setGenError(null);setGenResult(null);
     try{
-      const result=await callGemini(apiKey,buildMaster());
-      if(!Array.isArray(result.cards)||result.cards.length===0)throw new Error("No cards returned. Try a more specific topic.");
+      const result=await generateCards(buildMaster());
       hap.success();snd.reveal();
       setGenResult(result);
     }catch(e){hap.error();setGenError(e.message);}
@@ -299,13 +277,6 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
     navigator.clipboard.writeText(text).then(()=>{hap.success();snd.reveal();setCopied(type);setTimeout(()=>setCopied(null),2200);}).catch(()=>{hap.error();});
   };
 
-  const copySteps=[
-    ["1","Fill in the fields above (Topic is all you need)"],
-    ["2","Copy a prompt — Master for better quality, Simple for quick iteration"],
-    ["3","Paste it into Claude, ChatGPT, Gemini, or any LLM and run it"],
-    ["4","Copy the entire JSON block the LLM outputs"],
-    ["5",inline?"Tap Edit Library → Import JSON → paste → Import":"Close this — tap Edit Library → Import JSON → paste → Import"],
-  ];
   const aiSteps=[
     ["1","Enter a topic above (audience and difficulty are optional)"],
     ["2","Click Generate with AI and wait a few seconds"],
@@ -333,7 +304,7 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
 
       {/* ── Action buttons ── */}
       <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20}}>
-        {apiKey&&!generating&&!genResult&&(
+        {!generating&&!genResult&&(
           <SpotifyBtn fullWidth onClick={generate}>Generate with AI ✦</SpotifyBtn>
         )}
         {generating&&(
@@ -344,7 +315,7 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
         )}
         {!generating&&(
           <>
-            <SpotifyBtn fullWidth variant={apiKey?"secondary":"primary"} onClick={()=>copy("master")}>
+            <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("master")}>
               {copied==="master"?"Copied ✓":"Copy Master Prompt"}
             </SpotifyBtn>
             <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
@@ -384,59 +355,18 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
       {/* ── How to use ── */}
       {!genResult&&(
         <div style={{marginTop:20,background:S.card,borderRadius:6,padding:"16px 18px"}}>
-          <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>
-            {apiKey?"How to use":"How to use"}
-          </div>
-          {(apiKey?aiSteps:copySteps).map(([n,text])=>(
+          <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>How to use</div>
+          {aiSteps.map(([n,text])=>(
             <div key={n} style={{display:"flex",gap:12,marginBottom:10,alignItems:"flex-start"}}>
               <div style={{width:20,height:20,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:S.green,flexShrink:0,fontFamily:F,marginTop:1}}>{n}</div>
               <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>{text}</div>
             </div>
           ))}
+          <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${S.border}`,fontSize:12,color:S.faint,fontFamily:F,lineHeight:1.6}}>
+            Prefer your own LLM? Copy a prompt above and paste into any AI — then use Import JSON.
+          </div>
         </div>
       )}
-
-      {/* ── API Key section ── */}
-      <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${S.border}`}}>
-        <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10,fontFamily:F}}>Gemini API Key</div>
-        {apiKey?(
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:S.elevated,borderRadius:6,border:`1px solid ${S.green}33`}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:S.green,flexShrink:0}}/>
-              <span style={{fontSize:13,color:S.green,fontFamily:F,fontWeight:700}}>Connected</span>
-            </div>
-            <button onClick={clearKey} style={{fontSize:12,color:S.subdued,background:"none",border:"none",cursor:"pointer",fontFamily:F,padding:"4px 8px"}}
-              onMouseEnter={e=>e.currentTarget.style.color=S.danger}
-              onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>Remove</button>
-          </div>
-        ):(
-          <>
-            <div style={{display:"flex",gap:8,marginBottom:8}}>
-              <input
-                type={showKey?"text":"password"}
-                value={keyDraft}
-                onChange={e=>setKeyDraft(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&saveKey()}
-                placeholder="Paste API key here…"
-                style={{...inpStyle,flex:1}}
-                onFocus={e=>e.target.style.borderColor=S.white}
-                onBlur={e=>e.target.style.borderColor=S.border}
-              />
-              <button onClick={()=>setShowKey(p=>!p)} style={{background:S.card,border:`1px solid ${S.border}`,borderRadius:4,color:S.subdued,cursor:"pointer",padding:"0 12px",fontSize:12,fontFamily:F,flexShrink:0,transition:"color 0.15s"}}
-                onMouseEnter={e=>e.currentTarget.style.color=S.white}
-                onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
-                {showKey?"Hide":"Show"}
-              </button>
-              <SpotifyBtn size="sm" onClick={saveKey}>Save</SpotifyBtn>
-            </div>
-            <div style={{fontSize:12,color:S.faint,fontFamily:F,lineHeight:1.7}}>
-              Free key at{" "}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{color:S.subdued,textDecoration:"underline"}}>aistudio.google.com</a>
-              {" "}· Stored on this device only · Sent directly to Google, never shared
-            </div>
-          </>
-        )}
-      </div>
     </>
   );
 }
