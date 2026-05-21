@@ -631,9 +631,10 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
           </div>
         )}
         <div style={{padding:"14px 20px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-          {!showCtx&&<button onClick={()=>{hap.light();snd.reveal();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}}
-            onMouseEnter={e=>e.currentTarget.style.borderColor=S.white}
-            onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↑ Expand</button>}
+          {!showCtx
+            ?<button onClick={()=>{hap.light();snd.reveal();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}} onMouseEnter={e=>e.currentTarget.style.borderColor=S.white} onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↑ Expand</button>
+            :<button onClick={()=>{hap.light();setShowCtx(false);}} style={{fontSize:12,fontWeight:700,color:S.subdued,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}} onMouseEnter={e=>e.currentTarget.style.borderColor=S.subdued} onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↓ Collapse</button>
+          }
           <div style={{marginLeft:"auto",display:"flex",gap:8}}>
             <button onClick={()=>{hap.light();onStarred();}} style={{fontSize:14,fontWeight:700,color:starred?S.star:S.subdued,background:starred?`${S.star}18`:"transparent",border:`1px solid ${starred?S.star:S.border}`,borderRadius:500,padding:"6px 14px",cursor:"pointer",fontFamily:F,transition:"all 0.15s",lineHeight:1}}>
               {starred?"★":"☆"}
