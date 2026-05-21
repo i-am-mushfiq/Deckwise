@@ -8,44 +8,43 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'prompt is required' });
   }
 
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) {
     return res.status(503).json({ error: 'AI generation is not available right now.' });
   }
 
   try {
-    const geminiRes = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    const groqRes = await fetch(
+      'https://api.groq.com/openai/v1/chat/completions',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-          },
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          temperature: 0.7,
+          max_tokens: 8192,
         }),
       }
     );
 
-    if (!geminiRes.ok) {
+    if (!groqRes.ok) {
       let msg = '';
-      try { const e = await geminiRes.json(); msg = e.error?.message || ''; } catch {}
-      if (geminiRes.status === 400) return res.status(400).json({ error: 'Invalid request — try rephrasing your topic.' });
-      if (geminiRes.status === 429) return res.status(429).json({ error: `Rate limit reached — try again in a minute.${msg ? ' (' + msg + ')' : ''}` });
+      try { const e = await groqRes.json(); msg = e.error?.message || ''; } catch {}
+      if (groqRes.status === 401) return res.status(401).json({ error: 'Invalid API key.' });
+      if (groqRes.status === 429) return res.status(429).json({ error: `Rate limit reached — try again in a minute.${msg ? ' (' + msg + ')' : ''}` });
+      if (groqRes.status === 400) return res.status(400).json({ error: 'Invalid request — try rephrasing your topic.' });
       return res.status(502).json({ error: `Generation failed${msg ? ': ' + msg : ''}` });
     }
 
-    const data = await geminiRes.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data = await groqRes.json();
+    const text = data.choices?.[0]?.message?.content;
 
     if (!text) {
-      const reason = data.candidates?.[0]?.finishReason;
-      if (reason === 'SAFETY') {
-        return res.status(400).json({ error: 'This topic was flagged for safety. Try rephrasing.' });
-      }
       return res.status(502).json({ error: 'Empty response from AI. Please try again.' });
     }
 
