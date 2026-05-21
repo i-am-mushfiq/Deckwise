@@ -83,6 +83,18 @@ const snd={
   reveal:    ()=>{ntone(660,0.15,0.1);setTimeout(()=>ntone(880,0.2,0.08),80);},
 };
 
+// ── AI GENERATION — proxied through /api/generate (key never touches client) ──
+async function generateCards(prompt){
+  const res=await fetch("/api/generate",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({prompt})
+  });
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error||`Error ${res.status}`);
+  return data;
+}
+
 function SpotifyBtn({children,onClick,variant="primary",size="md",fullWidth=false}){
   const bg=variant==="primary"?S.green:variant==="secondary"?"transparent":S.elevated;
   const col=variant==="primary"?"#1c1208":S.white;
@@ -186,11 +198,26 @@ function ImportModal({onClose,onImport}){
   );
 }
 
-function PromptContent({inline=false}){
+function PromptContent({inline=false,onImport}){
   const[topic,setTopic]=useState("");
   const[audience,setAudience]=useState("");
   const[difficulty,setDifficulty]=useState(null);
+  const[cardCount,setCardCount]=useState(30);
   const[copied,setCopied]=useState(null);
+  const[generating,setGenerating]=useState(false);
+  const[genResult,setGenResult]=useState(null);
+  const[genError,setGenError]=useState(null);
+
+  const generate=async()=>{
+    if(!topic.trim()){setGenError("Enter a topic first.");return;}
+    setGenerating(true);setGenError(null);setGenResult(null);
+    try{
+      const result=await generateCards(buildMaster());
+      hap.success();snd.reveal();
+      setGenResult(result);
+    }catch(e){hap.error();setGenError(e.message);}
+    finally{setGenerating(false);}
+  };
 
   const diffNote={
     beginner:"Focus on difficulty 1 (Intro) cards. Use everyday language and analogies. Define every term you introduce.",
@@ -205,6 +232,7 @@ function PromptContent({inline=false}){
     return `You are an expert curriculum designer creating content for a sequential card-based learning app.
 
 TOPIC: ${t}${a}${d}
+CARD COUNT: Generate exactly ${cardCount} cards.
 
 Design a carefully sequenced set of learning cards. The order IS the curriculum — later cards assume the user understood earlier ones.
 
@@ -241,7 +269,7 @@ OUTPUT: Raw JSON only. No markdown, no code fences, no explanation before or aft
     const t=topic.trim()||"[YOUR TOPIC]";
     const a=audience.trim()?` for ${audience.trim()}`:"";
     const d=difficulty?` Difficulty focus: ${difficulty}.`:"";
-    return `You are a curriculum designer. Break "${t}"${a} into a sequential card set.${d}
+    return `You are a curriculum designer. Break "${t}"${a} into a sequential card set of exactly ${cardCount} cards.${d}
 Output ONLY valid JSON: { "id": "topic-abc", "title": "${t}", "type": "topic", "path": [], "cards": [{ "id": "card-1", "order": 1, "title": "...", "body": "2–4 sentences, one idea only.", "context": "deeper why/how", "tags": ["foundational"], "difficulty": 1 }] }
 Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Core 3=Advanced. No markdown. Raw JSON only.`;
   };
@@ -251,12 +279,10 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
     navigator.clipboard.writeText(text).then(()=>{hap.success();snd.reveal();setCopied(type);setTimeout(()=>setCopied(null),2200);}).catch(()=>{hap.error();});
   };
 
-  const steps=[
-    ["1","Fill in the fields above (Topic is all you need)"],
-    ["2","Copy a prompt — Master for better quality, Simple for quick iteration"],
-    ["3","Paste it into Claude, ChatGPT, Gemini, or any LLM and run it"],
-    ["4","Copy the entire JSON block the LLM outputs"],
-    ["5",inline?"Tap Edit Library → Import JSON → paste → Import":"Close this — tap Edit Library → Import JSON → paste → Import"],
+  const aiSteps=[
+    ["1","Enter a topic above (audience and difficulty are optional)"],
+    ["2","Click Generate with AI and wait a few seconds"],
+    ["3","Review the cards then tap Add to Library"],
   ];
 
   return(
@@ -277,31 +303,103 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
           ))}
         </div>
       </Field>
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20}}>
-        <SpotifyBtn fullWidth onClick={()=>copy("master")}>
-          {copied==="master"?"Copied ✓":"Copy Master Prompt"}
-        </SpotifyBtn>
-        <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
-          {copied==="simple"?"Copied ✓":"Copy Simple Prompt"}
-        </SpotifyBtn>
-      </div>
-      <div style={{marginTop:20,background:S.card,borderRadius:6,padding:"16px 18px"}}>
-        <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>How to use</div>
-        {steps.map(([n,text])=>(
-          <div key={n} style={{display:"flex",gap:12,marginBottom:10,alignItems:"flex-start"}}>
-            <div style={{width:20,height:20,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:S.green,flexShrink:0,fontFamily:F,marginTop:1}}>{n}</div>
-            <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>{text}</div>
+
+      <Field label={`Number of cards — ${cardCount}`}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:12,color:S.faint,fontFamily:F,flexShrink:0}}>1</span>
+          <div style={{flex:1,position:"relative"}}>
+            <style>{`
+              .sl-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:linear-gradient(to right,${S.green} ${cardCount}%,${S.faint} ${cardCount}%);outline:none;cursor:pointer;}
+              .sl-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:${S.green};cursor:pointer;box-shadow:0 0 0 3px ${S.card},0 0 0 5px ${S.green}44;}
+              .sl-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:${S.green};cursor:pointer;border:none;box-shadow:0 0 0 3px ${S.card},0 0 0 5px ${S.green}44;}
+            `}</style>
+            <input
+              type="range" min={1} max={100} value={cardCount}
+              onChange={e=>setCardCount(Number(e.target.value))}
+              className="sl-slider"
+            />
           </div>
-        ))}
+          <span style={{fontSize:12,color:S.faint,fontFamily:F,flexShrink:0}}>100</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:6,fontSize:11,color:S.faint,fontFamily:F}}>
+          <span>Quick overview</span>
+          <span>Deep dive</span>
+        </div>
+      </Field>
+
+      {/* ── Action buttons ── */}
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20}}>
+        {!generating&&!genResult&&(
+          <SpotifyBtn fullWidth onClick={generate}>Generate with AI ✦</SpotifyBtn>
+        )}
+        {generating&&(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"14px",background:S.elevated,border:`1px solid ${S.border}`,borderRadius:500}}>
+            <div style={{width:14,height:14,border:`2px solid ${S.green}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+            <span style={{fontSize:14,fontWeight:700,color:S.subdued,fontFamily:F}}>Generating cards…</span>
+          </div>
+        )}
+        {!generating&&(
+          <>
+            <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("master")}>
+              {copied==="master"?"Copied ✓":"Copy Master Prompt"}
+            </SpotifyBtn>
+            <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
+              {copied==="simple"?"Copied ✓":"Copy Simple Prompt"}
+            </SpotifyBtn>
+          </>
+        )}
       </div>
+
+      {/* ── Error ── */}
+      {genError&&(
+        <div style={{marginTop:12,padding:"10px 14px",background:`${S.danger}15`,border:`1px solid ${S.danger}44`,borderRadius:6,fontSize:13,color:S.danger,fontFamily:F,lineHeight:1.5}}>
+          {genError}
+        </div>
+      )}
+
+      {/* ── Generation result preview ── */}
+      {genResult&&(
+        <div style={{marginTop:16,background:S.card,borderRadius:6,padding:"16px 18px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10,fontFamily:F}}>Generated ✓</div>
+          <div style={{fontSize:15,fontWeight:700,color:S.white,fontFamily:F,marginBottom:4}}>{genResult.title||topic}</div>
+          <div style={{fontSize:12,color:S.subdued,fontFamily:F,marginBottom:12}}>{genResult.cards.length} cards</div>
+          {genResult.cards.slice(0,4).map(c=>(
+            <div key={c.id||c.order} style={{fontSize:12,color:S.faint,fontFamily:F,padding:"4px 0",borderBottom:`1px solid ${S.border}`}}>#{c.order} {c.title}</div>
+          ))}
+          {genResult.cards.length>4&&<div style={{fontSize:12,color:S.faint,fontFamily:F,marginTop:6}}>+{genResult.cards.length-4} more</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:14}}>
+            {onImport&&(
+              <SpotifyBtn fullWidth onClick={()=>{onImport(genResult);setGenResult(null);}}>Add to Library</SpotifyBtn>
+            )}
+            <SpotifyBtn fullWidth variant="secondary" onClick={()=>{setGenResult(null);generate();}}>Regenerate</SpotifyBtn>
+            <SpotifyBtn fullWidth variant="ghost" onClick={()=>setGenResult(null)}>Discard</SpotifyBtn>
+          </div>
+        </div>
+      )}
+
+      {/* ── How to use ── */}
+      {!genResult&&(
+        <div style={{marginTop:20,background:S.card,borderRadius:6,padding:"16px 18px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14,fontFamily:F}}>How to use</div>
+          {aiSteps.map(([n,text])=>(
+            <div key={n} style={{display:"flex",gap:12,marginBottom:10,alignItems:"flex-start"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:S.elevated,border:`1px solid ${S.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:S.green,flexShrink:0,fontFamily:F,marginTop:1}}>{n}</div>
+              <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>{text}</div>
+            </div>
+          ))}
+          <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${S.border}`,fontSize:12,color:S.faint,fontFamily:F,lineHeight:1.6}}>
+            Prefer your own LLM? Copy a prompt above and paste into any AI — then use Import JSON.
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
-function PromptModal({onClose}){
+function PromptModal({onClose,onImport}){
   return(
     <Modal title="Generate with AI" onClose={onClose} width={560}>
-      <PromptContent inline={false}/>
+      <PromptContent inline={false} onImport={onImport}/>
     </Modal>
   );
 }
@@ -426,7 +524,7 @@ function LibraryEditor({library,onSave,onClose}){
       {modal?.type==="topic"&&modal.node&&<TopicModal existing={modal.node} onSave={t=>renameNode(modal.node.id,t)} onClose={()=>setModal(null)}/>}
       {modal?.type==="cards"&&<CardSetManager topic={modal.node} onSave={saveCards} onClose={()=>setModal(null)}/>}
       {modal?.type==="import"&&<ImportModal onClose={()=>setModal(null)} onImport={handleImport}/>}
-      {modal?.type==="prompt"&&<PromptModal onClose={()=>setModal(null)}/>}
+      {modal?.type==="prompt"&&<PromptModal onClose={()=>setModal(null)} onImport={handleImport}/>}
     </>
   );
 }
@@ -655,6 +753,13 @@ export default function App(){
   },[]);
 
   const saveLibrary=useCallback((tree)=>{setLibrary(tree);lsSave(KEYS.library,tree);},[]);
+  const handleDirectImport=useCallback((data)=>{
+    setLibrary(prev=>{
+      const updated=rebuildPaths(insertInto(prev,"root",{...data,id:data.id||`topic-${uid()}`,type:"topic",path:data.path||[]}));
+      lsSave(KEYS.library,updated);
+      return updated;
+    });
+  },[]);
   const topics=library?flattenTopics(library):[];
   const currentCard=activeQueue[cardIndex];
   const totalCards=topics.reduce((s,t)=>s+t.cards.length,0);
@@ -728,7 +833,7 @@ export default function App(){
           {showPromptPanel&&(
             <div style={{background:S.elevated,border:`1px solid ${S.border}`,borderRadius:8,padding:"20px",marginBottom:24}}>
               <div style={{fontSize:13,fontWeight:700,color:S.green,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:16,fontFamily:F}}>Generate with AI</div>
-              <PromptContent inline/>
+              <PromptContent inline onImport={handleDirectImport}/>
             </div>
           )}
           <div style={{background:S.card,borderRadius:8,padding:"20px",marginBottom:24}}>
