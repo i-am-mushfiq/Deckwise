@@ -41,6 +41,7 @@ const S = {
   white:"#f5e6cc",subdued:"#a88b6a",faint:"#5c4530",
   danger:"#b83222",border:"rgba(200,118,26,0.18)",
   d1:"#7daa52",d2:"#c8761a",d3:"#b83222",
+  star:"#e6b84a",
 };
 const F = "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', Helvetica, Arial, sans-serif";
 
@@ -53,7 +54,7 @@ function findAndDelete(node,id){if(!node.children)return node;return{...node,chi
 function insertInto(node,pid,child){if(node.id===pid)return{...node,children:[...(node.children||[]),child]};if(!node.children)return node;return{...node,children:node.children.map(c=>insertInto(c,pid,child))};}
 
 // ── STORAGE — localStorage for real browser ───────────────────────────────────
-const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",progress:"sl-prog",library:"sl-lib"};
+const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",starred:"sl-star",progress:"sl-prog",library:"sl-lib"};
 function lsLoad(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
 function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
@@ -543,7 +544,7 @@ function LibraryEditor({library,onSave,onClose}){
   );
 }
 
-function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
+function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starred,onStarred}){
   const ref=useRef(null);
   const[pos,setPos]=useState({x:0,y:0,rot:0});
   const[flyOut,setFlyOut]=useState(null);
@@ -633,9 +634,14 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused}){
           {!showCtx&&<button onClick={()=>{hap.light();snd.reveal();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}}
             onMouseEnter={e=>e.currentTarget.style.borderColor=S.white}
             onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↑ Expand</button>}
-          <button onClick={()=>{hap.medium();onConfused();}} style={{fontSize:12,fontWeight:700,color:confused?S.green:S.subdued,background:confused?`${S.green}18`:"transparent",border:`1px solid ${confused?S.green:S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,marginLeft:"auto",transition:"all 0.15s"}}>
-            {confused?"Flagged":"Flag"}
-          </button>
+          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+            <button onClick={()=>{hap.light();onStarred();}} style={{fontSize:14,fontWeight:700,color:starred?S.star:S.subdued,background:starred?`${S.star}18`:"transparent",border:`1px solid ${starred?S.star:S.border}`,borderRadius:500,padding:"6px 14px",cursor:"pointer",fontFamily:F,transition:"all 0.15s",lineHeight:1}}>
+              {starred?"★":"☆"}
+            </button>
+            <button onClick={()=>{hap.medium();onConfused();}} style={{fontSize:12,fontWeight:700,color:confused?S.green:S.subdued,background:confused?`${S.green}18`:"transparent",border:`1px solid ${confused?S.green:S.border}`,borderRadius:500,padding:"6px 14px",cursor:"pointer",fontFamily:F,transition:"all 0.15s"}}>
+              {confused?"Flagged":"Flag"}
+            </button>
+          </div>
         </div>
         <div style={{paddingBottom:18,paddingLeft:20,display:"flex",gap:6,flexWrap:"wrap"}}>
           {card.tags.map(t=><span key={t} style={{fontSize:11,fontWeight:700,color:S.subdued,background:S.elevated,borderRadius:500,padding:"3px 10px",fontFamily:F,letterSpacing:"0.04em"}}>{t}</span>)}
@@ -677,12 +683,20 @@ function ProgressBar({current,total,revisitCount,confusedCount}){
   );
 }
 
-function DirectoryNode({node,depth,onSelect,completionMap,progressMap}){
+function DirectoryNode({node,depth,onSelect,completionMap,progressMap,confusedIds=[],starredIds=[],onSelectFlagged,onSelectStarred}){
   const[open,setOpen]=useState(depth<2);
   if(node.type==="topic"){
     const done=node.cards.filter(c=>completionMap[c.id]).length;
     const pct=node.cards.length?Math.round(done/node.cards.length*100):0;
     const inProg=(progressMap[node.id]||0)>0&&pct<100;
+    const flaggedCount=node.cards.filter(c=>confusedIds.includes(c.id)).length;
+    const starredCount=node.cards.filter(c=>starredIds.includes(c.id)).length;
+    const chipBtn=(label,color,onClick)=>(
+      <button onClick={e=>{e.stopPropagation();hap.light();onClick();}}
+        style={{fontSize:11,fontWeight:700,color,background:`${color}18`,border:`1px solid ${color}44`,borderRadius:500,padding:"2px 8px",cursor:"pointer",fontFamily:F,transition:"all 0.15s",lineHeight:1.6}}>
+        {label}
+      </button>
+    );
     return(
       <div onClick={()=>{if(node.cards.length){hap.light();onSelect(node);}}}
         style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",borderRadius:4,cursor:node.cards.length?"pointer":"default",transition:"background 0.15s",marginBottom:2}}
@@ -695,6 +709,12 @@ function DirectoryNode({node,depth,onSelect,completionMap,progressMap}){
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{node.title}</div>
           <div style={{fontSize:12,color:S.subdued,fontFamily:F}}>{node.cards.length} cards{!node.cards.length?" · add cards in library":""}</div>
+          {(flaggedCount>0||starredCount>0)&&(
+            <div style={{display:"flex",gap:6,marginTop:5}} onClick={e=>e.stopPropagation()}>
+              {flaggedCount>0&&chipBtn(`🚩 ${flaggedCount} flagged`,S.green,()=>onSelectFlagged?.(node))}
+              {starredCount>0&&chipBtn(`★ ${starredCount} starred`,S.star,()=>onSelectStarred?.(node))}
+            </div>
+          )}
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
           <div style={{fontSize:13,fontWeight:700,color:pct===100?S.green:inProg?S.white:S.subdued,fontFamily:F}}>{pct}%</div>
@@ -713,12 +733,12 @@ function DirectoryNode({node,depth,onSelect,completionMap,progressMap}){
         <span style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,flex:1}}>{node.title}</span>
         <span style={{fontSize:12,color:S.faint,fontFamily:F}}>{(node.children||[]).length} items</span>
       </div>
-      {open&&<div style={{paddingLeft:depth>0?16:0}}>{node.children?.map(c=><DirectoryNode key={c.id} node={c} depth={depth+1} onSelect={onSelect} completionMap={completionMap} progressMap={progressMap}/>)}</div>}
+      {open&&<div style={{paddingLeft:depth>0?16:0}}>{node.children?.map(c=><DirectoryNode key={c.id} node={c} depth={depth+1} onSelect={onSelect} completionMap={completionMap} progressMap={progressMap} confusedIds={confusedIds} starredIds={starredIds} onSelectFlagged={onSelectFlagged} onSelectStarred={onSelectStarred}/>)}</div>}
     </div>
   );
 }
 
-function CompletionScreen({topic,revisitCards,confusedCards,onHome,onRevisitAll,onStudyFlagged}){
+function CompletionScreen({topic,revisitCards,confusedCards,starredCards,onHome,onRevisitAll,onStudyFlagged,onStudyStarred}){
   return(
     <div style={{padding:"40px 0 24px",textAlign:"center"}}>
       <div style={{width:80,height:80,borderRadius:"50%",background:`${S.green}22`,border:`2px solid ${S.green}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px",fontSize:36}}>🎯</div>
@@ -738,6 +758,13 @@ function CompletionScreen({topic,revisitCards,confusedCards,onHome,onRevisitAll,
           <button onClick={()=>{hap.medium();onStudyFlagged();}} style={{marginTop:14,width:"100%",padding:"11px 0",background:"transparent",border:`1px solid ${S.green}`,borderRadius:500,color:S.green,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:F}}>Study flagged cards →</button>
         </div>
       )}
+      {starredCards.length>0&&(
+        <div style={{background:S.card,borderRadius:8,padding:"16px 20px",marginBottom:12,textAlign:"left"}}>
+          <div style={{fontSize:12,fontWeight:700,color:S.star,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,fontFamily:F}}>Starred · {starredCards.length}</div>
+          {starredCards.map(c=><div key={c.id} style={{fontSize:13,color:S.subdued,padding:"6px 0",borderBottom:`1px solid ${S.border}`,fontFamily:F}}>{c.title}</div>)}
+          <button onClick={()=>{hap.medium();onStudyStarred();}} style={{marginTop:14,width:"100%",padding:"11px 0",background:"transparent",border:`1px solid ${S.star}`,borderRadius:500,color:S.star,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:F}}>Review starred cards →</button>
+        </div>
+      )}
       <SpotifyBtn fullWidth onClick={()=>{hap.medium();onHome();}}>Back to library</SpotifyBtn>
     </div>
   );
@@ -749,6 +776,7 @@ export default function App(){
   const[completionMap,setCompletionMap]=useState({});
   const[revisitIds,setRevisitIds]=useState([]);
   const[confusedIds,setConfusedIds]=useState([]);
+  const[starredIds,setStarredIds]=useState([]);
   const[progressMap,setProgressMap]=useState({});
   const[screen,setScreen]=useState("home");
   const[activeTopic,setActiveTopic]=useState(null);
@@ -763,6 +791,7 @@ export default function App(){
     setCompletionMap(lsLoad(KEYS.completion,{}));
     setRevisitIds(lsLoad(KEYS.revisit,[]));
     setConfusedIds(lsLoad(KEYS.confused,[]));
+    setStarredIds(lsLoad(KEYS.starred,[]));
     setProgressMap(lsLoad(KEYS.progress,{}));
     setLibrary(lsLoad(KEYS.library,null)||DEMO_DATA);
     setReady(true);
@@ -786,6 +815,7 @@ export default function App(){
     let cards;
     if(mode==="revisit")cards=topic.cards.filter(c=>revisitIds.includes(c.id));
     else if(mode==="flagged")cards=topic.cards.filter(c=>confusedIds.includes(c.id));
+    else if(mode==="starred")cards=topic.cards.filter(c=>starredIds.includes(c.id));
     else cards=topic.cards;
     const queue=cards.map(c=>({...c,topicId:topic.id,topicTitle:topic.title}));
     const saved=mode==="normal"&&progressMap[topic.id]?progressMap[topic.id]:0;
@@ -813,6 +843,11 @@ export default function App(){
     setConfusedIds(next);lsSave(KEYS.confused,next);
   },[confusedIds]);
 
+  const toggleStarred=useCallback((id)=>{
+    const next=starredIds.includes(id)?starredIds.filter(x=>x!==id):[...starredIds,id];
+    setStarredIds(next);lsSave(KEYS.starred,next);
+  },[starredIds]);
+
   const handleReset=()=>{
     hap.error();
     setCompletionMap({});setRevisitIds([]);setConfusedIds([]);setProgressMap({});
@@ -822,6 +857,7 @@ export default function App(){
 
   const revisitCards=activeTopic?activeTopic.cards.filter(c=>revisitIds.includes(c.id)):[];
   const confusedCards=activeTopic?activeTopic.cards.filter(c=>confusedIds.includes(c.id)):[];
+  const starredCards=activeTopic?activeTopic.cards.filter(c=>starredIds.includes(c.id)):[];
 
   if(!ready)return(
     <div style={{minHeight:"100vh",background:S.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -874,7 +910,7 @@ export default function App(){
               </div>
             )}
           </div>
-          {library&&<DirectoryNode node={library} depth={0} onSelect={startTopic} completionMap={completionMap} progressMap={progressMap}/>}
+          {library&&<DirectoryNode node={library} depth={0} onSelect={startTopic} completionMap={completionMap} progressMap={progressMap} confusedIds={confusedIds} starredIds={starredIds} onSelectFlagged={t=>startTopic(t,"flagged")} onSelectStarred={t=>startTopic(t,"starred")}/>}
           <div style={{marginTop:20,padding:"20px",background:S.elevated,borderRadius:8,border:`1px solid ${S.border}`,textAlign:"center"}}>
             <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,marginBottom:4}}>Generate a topic with AI</div>
             <div style={{fontSize:13,color:S.subdued,fontFamily:F,marginBottom:16}}>Turn any subject into a ready-to-swipe card deck</div>
@@ -902,7 +938,7 @@ export default function App(){
           </div>
           <ProgressBar current={cardIndex} total={activeQueue.length} revisitCount={revisitIds.filter(id=>activeQueue.some(c=>c.id===id)).length} confusedCount={confusedIds.filter(id=>activeQueue.some(c=>c.id===id)).length}/>
           <div style={{position:"relative",height:500,marginTop:20}}>
-            {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onSwipe={advance} onConfused={()=>toggleConfused(c.id)}/>;}).filter(Boolean)}
+            {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onConfused={()=>toggleConfused(c.id)} starred={starredIds.includes(c.id)} onStarred={()=>toggleStarred(c.id)} onSwipe={advance}/>;}).filter(Boolean)}
           </div>
           <ActionBar onLeft={()=>advance("left")} onRight={()=>advance("right")}/>
           <div style={{textAlign:"center",fontSize:12,color:S.faint,marginTop:8}}>Drag or tap · progress saved</div>
@@ -911,7 +947,7 @@ export default function App(){
 
       {screen==="complete"&&activeTopic&&(
         <div style={{maxWidth:520,margin:"0 auto",padding:"20px 16px"}}>
-          <CompletionScreen topic={activeTopic} revisitCards={revisitCards} confusedCards={confusedCards} onHome={()=>setScreen("home")} onRevisitAll={()=>startTopic(activeTopic,"revisit")} onStudyFlagged={()=>startTopic(activeTopic,"flagged")}/>
+          <CompletionScreen topic={activeTopic} revisitCards={revisitCards} confusedCards={confusedCards} starredCards={starredCards} onHome={()=>setScreen("home")} onRevisitAll={()=>startTopic(activeTopic,"revisit")} onStudyFlagged={()=>startTopic(activeTopic,"flagged")} onStudyStarred={()=>startTopic(activeTopic,"starred")}/>
         </div>
       )}
 
