@@ -718,7 +718,7 @@ function DirectoryNode({node,depth,onSelect,completionMap,progressMap}){
   );
 }
 
-function CompletionScreen({topic,revisitCards,confusedCards,onHome,onRevisitAll}){
+function CompletionScreen({topic,revisitCards,confusedCards,onHome,onRevisitAll,onStudyFlagged}){
   return(
     <div style={{padding:"40px 0 24px",textAlign:"center"}}>
       <div style={{width:80,height:80,borderRadius:"50%",background:`${S.green}22`,border:`2px solid ${S.green}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px",fontSize:36}}>🎯</div>
@@ -735,6 +735,7 @@ function CompletionScreen({topic,revisitCards,confusedCards,onHome,onRevisitAll}
         <div style={{background:S.card,borderRadius:8,padding:"16px 20px",marginBottom:12,textAlign:"left"}}>
           <div style={{fontSize:12,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,fontFamily:F}}>Flagged · {confusedCards.length}</div>
           {confusedCards.map(c=><div key={c.id} style={{fontSize:13,color:S.subdued,padding:"6px 0",borderBottom:`1px solid ${S.border}`,fontFamily:F}}>{c.title}</div>)}
+          <button onClick={()=>{hap.medium();onStudyFlagged();}} style={{marginTop:14,width:"100%",padding:"11px 0",background:"transparent",border:`1px solid ${S.green}`,borderRadius:500,color:S.green,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:F}}>Study flagged cards →</button>
         </div>
       )}
       <SpotifyBtn fullWidth onClick={()=>{hap.medium();onHome();}}>Back to library</SpotifyBtn>
@@ -781,9 +782,13 @@ export default function App(){
   const doneCards=topics.reduce((s,t)=>s+t.cards.filter(c=>completionMap[c.id]).length,0);
   const pct=totalCards?Math.round(doneCards/totalCards*100):0;
 
-  const startTopic=(topic,revisitMode=false)=>{
-    const queue=(revisitMode?topic.cards.filter(c=>revisitIds.includes(c.id)):topic.cards).map(c=>({...c,topicId:topic.id,topicTitle:topic.title}));
-    const saved=!revisitMode&&progressMap[topic.id]?progressMap[topic.id]:0;
+  const startTopic=(topic,mode="normal")=>{
+    let cards;
+    if(mode==="revisit")cards=topic.cards.filter(c=>revisitIds.includes(c.id));
+    else if(mode==="flagged")cards=topic.cards.filter(c=>confusedIds.includes(c.id));
+    else cards=topic.cards;
+    const queue=cards.map(c=>({...c,topicId:topic.id,topicTitle:topic.title}));
+    const saved=mode==="normal"&&progressMap[topic.id]?progressMap[topic.id]:0;
     setActiveTopic(topic);setActiveQueue(queue);setCardIndex(Math.min(saved,Math.max(0,queue.length-1)));setScreen("learn");
   };
 
@@ -906,7 +911,7 @@ export default function App(){
 
       {screen==="complete"&&activeTopic&&(
         <div style={{maxWidth:520,margin:"0 auto",padding:"20px 16px"}}>
-          <CompletionScreen topic={activeTopic} revisitCards={revisitCards} confusedCards={confusedCards} onHome={()=>setScreen("home")} onRevisitAll={()=>startTopic(activeTopic,true)}/>
+          <CompletionScreen topic={activeTopic} revisitCards={revisitCards} confusedCards={confusedCards} onHome={()=>setScreen("home")} onRevisitAll={()=>startTopic(activeTopic,"revisit")} onStudyFlagged={()=>startTopic(activeTopic,"flagged")}/>
         </div>
       )}
 
