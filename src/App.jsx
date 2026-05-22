@@ -737,7 +737,14 @@ function MergeModal({onKeepLocal,onUseCloud}){
   );
 }
 
-function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,onSignIn,onSignOut}){
+function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,onSignIn,onSignOut,syncStatus="idle"}){
+  const syncLabel={
+    idle:{text:"Synced",color:S.faint,dot:S.faint},
+    pending:{text:"Saving…",color:S.subdued,dot:S.subdued},
+    syncing:{text:"Syncing…",color:S.green,dot:S.green},
+    synced:{text:"Synced ✓",color:S.green,dot:S.green},
+    error:{text:"Sync failed",color:S.danger,dot:S.danger},
+  }[syncStatus]||{text:"",color:S.faint,dot:S.faint};
   const addedIds=new Set(flattenTopics(library||{id:"root",type:"directory",children:[]}).map(t=>t.id));
   return(
     <>
@@ -770,9 +777,9 @@ function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,onSignIn
                 <div style={{fontSize:11,color:S.faint,fontFamily:F,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</div>
               </div>
             </div>
-            <div style={{fontSize:11,color:S.green,fontFamily:F,marginBottom:10,display:"flex",alignItems:"center",gap:5}}>
-              <span style={{width:6,height:6,borderRadius:"50%",background:S.green,display:"inline-block"}}/>
-              Syncing to cloud
+            <div style={{fontSize:11,color:syncLabel.color,fontFamily:F,marginBottom:10,display:"flex",alignItems:"center",gap:5,transition:"color 0.3s"}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:syncLabel.dot,display:"inline-block",transition:"background 0.3s"}}/>
+              {syncLabel.text}
             </div>
             <button onClick={()=>{hap.medium();onSignOut();}}
               style={{width:"100%",padding:"8px 0",background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,color:S.subdued,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s"}}
@@ -1097,6 +1104,7 @@ export default function App(){
   const[user,setUser]=useState(null);
   const[showAuth,setShowAuth]=useState(false);
   const[mergeCandidate,setMergeCandidate]=useState(null);
+  const[syncStatus,setSyncStatus]=useState("idle"); // "idle"|"pending"|"syncing"|"synced"|"error"
   const syncTimerRef=useRef(null);
   const cloudSyncEnabled=useRef(false);
   const userRef=useRef(null);
@@ -1175,9 +1183,11 @@ export default function App(){
   // ── Debounced cloud sync — 2 s after any data change ─────────────────────
   useEffect(()=>{
     if(!supabase||!userRef.current||!cloudSyncEnabled.current)return;
+    setSyncStatus("pending");
     clearTimeout(syncTimerRef.current);
     syncTimerRef.current=setTimeout(async()=>{
       if(!userRef.current)return;
+      setSyncStatus("syncing");
       try{
         await supabase.from("user_data").upsert({
           user_id:userRef.current.id,
@@ -1189,7 +1199,13 @@ export default function App(){
           progress_map:progressMap,
           updated_at:new Date().toISOString()
         });
-      }catch(e){console.error("sync error",e);}
+        setSyncStatus("synced");
+        setTimeout(()=>setSyncStatus("idle"),3000);
+      }catch(e){
+        console.error("sync error",e);
+        setSyncStatus("error");
+        setTimeout(()=>setSyncStatus("idle"),4000);
+      }
     },2000);
     return()=>clearTimeout(syncTimerRef.current);
   },[library,completionMap,revisitIds,confusedIds,starredIds,progressMap]);
@@ -1411,7 +1427,7 @@ export default function App(){
 
       {showEditor&&library&&<LibraryEditor library={library} onSave={saveLibrary} onClose={()=>setShowEditor(false)}/>}
       {showQuickGenerate&&<PromptModal onClose={()=>setShowQuickGenerate(false)} onImport={handleDirectImport}/>}
-      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport} user={user} onSignIn={()=>{setSidebarOpen(false);setShowAuth(true);}} onSignOut={signOut}/>
+      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport} user={user} onSignIn={()=>{setSidebarOpen(false);setShowAuth(true);}} onSignOut={signOut} syncStatus={syncStatus}/>
       {showAuth&&<AuthModal onClose={()=>setShowAuth(false)}/>}
       {mergeCandidate&&<MergeModal onKeepLocal={handleKeepLocal} onUseCloud={handleUseCloud}/>}
     </div>
