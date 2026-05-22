@@ -1149,9 +1149,16 @@ export default function App(){
         // First sign-in ever — push local data up and start syncing
         cloudSyncEnabled.current=true;
         await syncNow(userId);
+        lsSave(`sl-synced-${userId}`,true);
         return;
       }
-      // Check if there is meaningful local data that might conflict with cloud
+      // If this device has synced before with this account, just apply cloud — no conflict check
+      const hasSyncedBefore=lsLoad(`sl-synced-${userId}`,false);
+      if(hasSyncedBefore){
+        applyCloudData(data);
+        return;
+      }
+      // First time this device has seen this account's cloud data — check for conflict
       const localLib=lsLoad(KEYS.library,null);
       const hasLocalData=localLib&&JSON.stringify(localLib)!==JSON.stringify(DEMO_DATA);
       const hasLocalProgress=Object.keys(lsLoad(KEYS.completion,{})).length>0;
@@ -1159,6 +1166,7 @@ export default function App(){
         setMergeCandidate(data); // Show merge choice modal
       }else{
         applyCloudData(data);
+        lsSave(`sl-synced-${userId}`,true);
       }
     }catch(e){console.error("load cloud error",e);}
   },[syncNow,applyCloudData]);
@@ -1218,14 +1226,18 @@ export default function App(){
   },[]);
 
   const handleKeepLocal=useCallback(async()=>{
+    const userId=userRef.current?.id;
     setMergeCandidate(null);
     cloudSyncEnabled.current=true;
-    await syncNow(userRef.current?.id);
+    await syncNow(userId);
+    if(userId)lsSave(`sl-synced-${userId}`,true);
   },[syncNow]);
 
   const handleUseCloud=useCallback(()=>{
+    const userId=userRef.current?.id;
     if(mergeCandidate)applyCloudData(mergeCandidate);
     setMergeCandidate(null);
+    if(userId)lsSave(`sl-synced-${userId}`,true);
   },[mergeCandidate,applyCloudData]);
 
   // ── load from localStorage on boot ─────────────────────────────────────────
