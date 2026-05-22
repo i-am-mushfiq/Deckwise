@@ -903,7 +903,7 @@ function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused,starre
   const dl=card.difficulty===1?"Intro":card.difficulty===2?"Core":"Advanced";
 
   return(
-    <div ref={ref} style={{position:"absolute",width:"100%",maxWidth:440,left:"50%",top:0,transform:`translateX(-50%) ${tx}`,transition:tr,cursor:isTop?"grab":"default",userSelect:"none",zIndex:10-stackIndex,touchAction:"none",filter:stackIndex>0?`brightness(${1-stackIndex*0.15})`:"none"}}>
+    <div ref={ref} data-testid={isTop?"active-card":"background-card"} style={{position:"absolute",width:"100%",maxWidth:440,left:"50%",top:0,transform:`translateX(-50%) ${tx}`,transition:tr,cursor:isTop?"grab":"default",userSelect:"none",zIndex:10-stackIndex,touchAction:"none",filter:stackIndex>0?`brightness(${1-stackIndex*0.15})`:"none"}}>
       <div style={{background:S.card,borderRadius:8,overflow:"hidden",position:"relative",boxShadow:isTop?"0 8px 40px rgba(0,0,0,0.6)":"0 2px 12px rgba(0,0,0,0.4)"}}>
         <div style={{height:3,background:dc,width:"100%"}}/>
         {isTop&&lOp>0.08&&<div style={{position:"absolute",top:20,left:16,opacity:lOp,transform:"rotate(-8deg)",zIndex:10,border:`2px solid ${S.green}`,borderRadius:4,padding:"4px 14px",color:S.green,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Got it ✓</div>}
@@ -1363,7 +1363,7 @@ export default function App(){
             </div>
           </div>
           {showPromptPanel&&(
-            <div style={{background:S.elevated,border:`1px solid ${S.border}`,borderRadius:8,padding:"20px",marginBottom:24}}>
+            <div data-testid="prompt-panel" style={{background:S.elevated,border:`1px solid ${S.border}`,borderRadius:8,padding:"20px",marginBottom:24}}>
               <div style={{fontSize:13,fontWeight:700,color:S.green,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:16,fontFamily:F}}>Generate with AI</div>
               <PromptContent inline onImport={handleDirectImport}/>
             </div>

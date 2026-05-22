@@ -1,13 +1,25 @@
 /**
  * Vitest global setup — runs before every test file.
- * Mocks browser APIs that App.jsx relies on but jsdom doesn't provide natively.
  *
- * The `@vitest-environment node` API tests also pull in this file, so every
- * mock here is guarded by `typeof window !== 'undefined'` / `typeof localStorage
- * !== 'undefined'` to avoid crashes in the Node environment.
+ * Browser-API mocks (AudioContext, vibrate, clipboard, matchMedia) are guarded
+ * by `typeof window !== 'undefined'` so this file is safe to import in both
+ * jsdom tests AND `@vitest-environment node` API tests.
+ *
+ * MSW lifecycle hooks are similarly guarded: they only apply in jsdom tests.
+ * The node-env API tests mock `fetch` directly and don't need MSW.
  */
 import '@testing-library/jest-dom';
-import { vi, beforeEach } from 'vitest';
+import { vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
+import { server } from './server.js';
+
+// ── MSW server lifecycle (jsdom only) ────────────────────────────────────────
+// Intercepts fetch at the network level so tests exercise the real
+// component → fetch → response → state-update pipeline.
+if (typeof window !== 'undefined') {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+  afterEach(() => server.resetHandlers());
+  afterAll(() => server.close());
+}
 
 // ── AudioContext (jsdom only) ─────────────────────────────────────────────────
 if (typeof window !== 'undefined') {
@@ -41,12 +53,13 @@ if (typeof window !== 'undefined') {
     sampleRate = 44100;
     currentTime = 0;
     destination = new MockAudioNode();
-    createBuffer = () => new MockAudioBuffer();
-    createBufferSource = () => new MockBufferSourceNode();
-    createBiquadFilter = () => new MockBiquadFilterNode();
-    createGain = () => new MockGainNode();
-    createOscillator = () => new MockOscillatorNode();
-    resume = () => Promise.resolve();
+    // Use vi.fn() so tests can spy on AudioContext method calls
+    createBuffer    = vi.fn(() => new MockAudioBuffer());
+    createBufferSource = vi.fn(() => new MockBufferSourceNode());
+    createBiquadFilter = vi.fn(() => new MockBiquadFilterNode());
+    createGain      = vi.fn(() => new MockGainNode());
+    createOscillator = vi.fn(() => new MockOscillatorNode());
+    resume          = vi.fn(() => Promise.resolve());
   }
 
   vi.stubGlobal('AudioContext', MockAudioContext);
@@ -63,7 +76,7 @@ if (typeof window !== 'undefined') {
   Object.defineProperty(navigator, 'clipboard', {
     value: {
       writeText: vi.fn().mockResolvedValue(undefined),
-      readText: vi.fn().mockResolvedValue(''),
+      readText:  vi.fn().mockResolvedValue(''),
     },
     configurable: true,
     writable: true,
@@ -75,11 +88,11 @@ if (typeof window !== 'undefined') {
       matches: false,
       media: query,
       onchange: null,
-      addListener: vi.fn(),
+      addListener:    vi.fn(),
       removeListener: vi.fn(),
-      addEventListener: vi.fn(),
+      addEventListener:    vi.fn(),
       removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
+      dispatchEvent:  vi.fn(),
     })),
     configurable: true,
     writable: true,
