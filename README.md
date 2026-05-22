@@ -2,7 +2,7 @@
 
 > Sequential, swipe-driven learning cards. Built for focused people who want to actually retain what they study.
 
-![Deckwise](https://img.shields.io/badge/status-active-c8761a?style=flat-square) ![License](https://img.shields.io/badge/license-MIT-3a2912?style=flat-square) ![React](https://img.shields.io/badge/React-18-c8761a?style=flat-square&logo=react) ![Vite](https://img.shields.io/badge/Vite-5-3a2912?style=flat-square&logo=vite) ![PWA](https://img.shields.io/badge/PWA-ready-c8761a?style=flat-square)
+![Status](https://img.shields.io/badge/status-active-c8761a?style=flat-square) ![License](https://img.shields.io/badge/license-MIT-3a2912?style=flat-square) ![React](https://img.shields.io/badge/React-18-c8761a?style=flat-square&logo=react) ![Vite](https://img.shields.io/badge/Vite-5-3a2912?style=flat-square&logo=vite) ![PWA](https://img.shields.io/badge/PWA-ready-c8761a?style=flat-square) ![Tests](https://img.shields.io/badge/tests-180%20passing-4a9e5c?style=flat-square)
 
 ---
 
@@ -18,32 +18,49 @@ The interaction model is borrowed from Tinder's swipe mechanic, but applied to s
 
 ## How it works
 
-| Gesture | Action |
+| Gesture / Button | Action |
 |---|---|
-| ← Swipe Left | Got it — advance forward |
+| ← Swipe Left | Got it — mark complete and advance |
 | → Swipe Right | Need to review — queued for later |
-| ↑ Swipe Up | Reveal deep dive context |
+| ↑ Expand | Reveal deep dive context |
 | Flag button | Mark for deeper research |
+| ★ Star button | Bookmark cards to revisit |
+| ↩ Back button | Undo the last swipe |
 
-Cards are **ordered**. You move through a topic sequentially. When you finish, you see your review queue and flagged cards — and can run through them again in one tap.
+Cards are **ordered**. You move through a topic sequentially. When you finish, you see your review queue, flagged cards, and starred cards — each launchable as its own focused session in one tap.
 
 ---
 
 ## Features
 
-- **Swipe mechanics** — drag cards with spring physics and momentum, or use the action buttons
-- **Sequential progression** — cards advance in order, later concepts build on earlier ones
-- **Deep dive layer** — every card has a hidden context layer revealed on upswipe
-- **Review queue** — right-swipe flags cards for revisiting at the end of a session
-- **Research flags** — mark cards you need to investigate further
+### Learning
+- **Swipe mechanics** — drag cards with spring physics and momentum, or tap the action buttons
+- **Sequential progression** — cards advance in order; later concepts build on earlier ones
+- **Deep dive layer** — every card has a hidden context layer revealed on Expand
+- **Review queue** — right-swipe queues cards for revisiting at the end of a session
+- **Flagged cards** — mark cards you need to research further; study them separately
+- **Starred cards** — bookmark cards you want to return to; dedicated starred session
+- **Undo** — go back one swipe at any point in a session
 - **Resume from where you left off** — per-topic progress saved automatically
-- **AI card generation** — generate a full topic deck instantly via Groq (Llama 3.3 70B)
-- **Full CRUD** — create directories, topics, and cards entirely in-app
-- **JSON import** — paste any topic JSON to add new content instantly
-- **Nested library** — organize topics into folders and sub-folders
-- **PWA** — installs on iPhone and Android home screen, works offline
-- **Haptics** — tactile feedback on every swipe and interaction (Android)
-- **Rustic Autumn palette** — dark bark backgrounds, worn leather cards, burnt amber accent
+
+### Content
+- **AI card generation** — type any topic and generate a full sequenced deck via Groq (Llama 3.3 70B)
+- **Community decks** — curated topics (Stoic Philosophy, Financial Literacy, Public Speaking) ready to add
+- **Full library CRUD** — create directories, topics, and cards entirely in-app
+- **JSON import** — paste any compatible topic JSON to add new content instantly
+- **Nested library** — organise topics into folders and sub-folders
+
+### Sync & Account
+- **Sign in with Google** — one tap, OAuth via Supabase
+- **Magic link** — sign in via email, no password required
+- **Cloud sync** — library and progress sync automatically across devices (2-second debounce)
+- **Conflict resolution** — when signing in on a new device with existing local data, choose to upload local or pull from cloud
+
+### Experience
+- **5 themes** — Rustic Autumn, Midnight, Forest, Slate, Obsidian; persists across sessions
+- **PWA** — installs on iPhone and Android home screen, works fully offline
+- **Haptics** — tactile feedback on every swipe and interaction (Android + supported iOS)
+- **Synthesized audio** — all sounds generated via Web Audio API, no audio files
 
 ---
 
@@ -64,13 +81,12 @@ Cards are **ordered**. You move through a topic sequentially. When you finish, y
 | UI Framework | React 18 |
 | Build tool | Vite 5 |
 | PWA | vite-plugin-pwa + Workbox |
-| Storage | localStorage (persists on device) |
+| Storage | localStorage (primary) + Supabase Postgres (cloud sync) |
+| Auth | Supabase (Google OAuth + magic link) |
+| AI | Groq API (Llama 3.3 70B) via Vercel serverless function |
 | Styling | Inline React styles — zero CSS files |
-| AI | Groq API (Llama 3.3 70B) via Vercel serverless |
 | Deployment | Vercel |
-| Package manager | npm |
-
-No backend database. No authentication. Everything lives on the user's device.
+| Tests | Vitest + MSW + Playwright (180 unit/integration + 29 E2E) |
 
 ---
 
@@ -96,7 +112,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173`. The app loads with two demo topics (Critical Thinking, How to Learn Anything) and works immediately — no env vars required for basic use.
 
 ### Production build
 
@@ -120,7 +136,7 @@ npm install -g vercel
 vercel
 ```
 
-Follow the prompts, accept all defaults. Your app is live in under a minute.
+Follow the prompts. Your app is live in under a minute.
 
 **Or via GitHub auto-deploy:**
 1. Push this repo to GitHub
@@ -130,33 +146,36 @@ Follow the prompts, accept all defaults. Your app is live in under a minute.
 
 ### Environment variables
 
-Add this in Vercel → Project → Settings → Environment Variables:
+Set these in Vercel → Project → Settings → Environment Variables (or `.env.local` for local dev):
 
-| Key | Value |
-|---|---|
-| `GROQ_API_KEY` | Your key from [console.groq.com](https://console.groq.com) |
+| Key | Where to get it | Required for |
+|---|---|---|
+| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) | AI card generation |
+| `VITE_SUPABASE_URL` | Supabase project → Settings → API | Auth + cloud sync |
+| `VITE_SUPABASE_ANON_KEY` | Supabase project → Settings → API | Auth + cloud sync |
+
+**Everything works without these** — AI generation shows an error, auth/sync is silently disabled, and the app runs fully offline-only.
 
 ### Other platforms
 
-The `/dist` output is a static site — it deploys to Netlify, Cloudflare Pages, GitHub Pages, or any static host with zero configuration. Note: the `/api/generate` serverless function requires Vercel or a Node.js host.
+The `/dist` output is a static site — it deploys to Netlify, Cloudflare Pages, or GitHub Pages with zero configuration. The `/api/generate` serverless function requires Vercel or another Node.js serverless host.
 
 ---
 
 ## Installing on iPhone
 
-1. Deploy to Vercel (get your live URL)
+1. Deploy to Vercel and get your live URL
 2. Open the URL in **Safari** on your iPhone (must be Safari)
 3. Tap the **Share** button `⬆`
-4. Tap **Add to Home Screen**
-5. Tap **Add**
+4. Tap **Add to Home Screen** → **Add**
 
-Deckwise now lives on your home screen. Full screen, no browser chrome, works offline. Indistinguishable from a native app.
+Deckwise now lives on your home screen — full screen, no browser chrome, works offline.
 
 ---
 
 ## Content — JSON schema
 
-Deckwise is content-agnostic. You feed it topics via JSON. The structure:
+Deckwise is content-agnostic. Import any topic via JSON:
 
 ```json
 {
@@ -166,7 +185,7 @@ Deckwise is content-agnostic. You feed it topics via JSON. The structure:
   "path": ["Machine Learning", "Optimization"],
   "cards": [
     {
-      "id": "gradient-descent-1",
+      "id": "gd-1",
       "order": 1,
       "title": "The Problem: Finding the Lowest Point",
       "body": "Training a model means adjusting parameters until predictions are accurate. Gradient descent is the algorithm that finds the best parameter values systematically.",
@@ -182,17 +201,23 @@ Deckwise is content-agnostic. You feed it topics via JSON. The structure:
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | string | Unique slug, e.g. `gradient-descent` |
+| `id` | string | Unique slug |
 | `title` | string | Display name of the topic |
-| `type` | string | Always `"topic"` for importable content |
+| `type` | string | Always `"topic"` |
 | `path` | string[] | Breadcrumb, e.g. `["Machine Learning", "Optimization"]` |
-| `cards[].id` | string | Unique card ID, e.g. `gradient-descent-1` |
-| `cards[].order` | number | Integer — cards render in ascending order |
+| `cards[].id` | string | Unique card ID |
+| `cards[].order` | number | Cards render in ascending order — this IS the curriculum |
 | `cards[].title` | string | Short concept name |
 | `cards[].body` | string | Core explanation, 2–4 sentences, one idea only |
-| `cards[].context` | string | Deep dive — revealed on ↑ swipe, answers "but why?" |
-| `cards[].tags` | string[] | Lowercase labels, e.g. `["foundational", "mechanism"]` |
+| `cards[].context` | string | Deep dive — shown on Expand, answers "but why?" |
+| `cards[].tags` | string[] | Labels, e.g. `["foundational", "mechanism"]` |
 | `cards[].difficulty` | number | `1` = Intro, `2` = Core, `3` = Advanced |
+
+### Generating content with AI
+
+Click **AI Prompt** on the home screen, type a topic, and hit **Generate with AI**. Deckwise calls the Groq API and builds a sequenced deck automatically. You can preview the cards before adding to your library.
+
+Alternatively, use the **Copy Master Prompt** button and paste into any LLM (ChatGPT, Claude, Gemini), then import the JSON output via **Edit Library → Import JSON**.
 
 ---
 
@@ -201,56 +226,92 @@ Deckwise is content-agnostic. You feed it topics via JSON. The structure:
 ```
 Deckwise/
 ├── api/
-│   └── generate.js         ← Vercel serverless — Groq proxy
+│   └── generate.js           ← Vercel serverless — Groq AI proxy
+├── e2e/
+│   ├── learn-flow.spec.js    ← Playwright E2E — learn screen, completion, sidebar
+│   └── persistence.spec.js   ← Playwright E2E — localStorage survives page reloads
 ├── public/
-│   ├── icon-192.png        ← PWA icon (iOS home screen)
-│   └── icon-512.png        ← PWA icon (splash screen)
+│   ├── icon-192.png          ← PWA icon (iOS home screen)
+│   └── icon-512.png          ← PWA icon (splash screen)
 ├── src/
-│   ├── main.jsx            ← React entry point
-│   └── App.jsx             ← Entire application (single file)
-├── index.html              ← HTML shell with iOS PWA meta tags
-├── vite.config.js          ← Vite + PWA plugin config
-├── package.json
-└── README.md
+│   ├── main.jsx              ← React entry point
+│   ├── App.jsx               ← Entire application (~1400 lines)
+│   ├── lib.js                ← Pure utility functions (tree traversal, localStorage)
+│   ├── supabase.js           ← Supabase client (null when unconfigured)
+│   ├── test/
+│   │   ├── setup.js          ← Vitest global setup + browser API mocks
+│   │   ├── server.js         ← MSW server instance
+│   │   └── handlers.js       ← Default MSW network handlers
+│   └── __tests__/
+│       ├── fixtures.js       ← Shared test data
+│       ├── unit/             ← Pure function tests
+│       ├── api/              ← Serverless handler tests
+│       └── integration/      ← Full app render tests (MSW + Supabase spies)
+├── vite.config.js            ← Vite + PWA plugin config
+├── playwright.config.js      ← E2E test config
+└── package.json
 ```
-
-The entire application lives in `src/App.jsx`. No component files, no routing library, no state management library — just React hooks and localStorage.
 
 ---
 
-## Design system
+## Running tests
 
-Deckwise uses a **Rustic Autumn** palette — dark, warm, and intentional.
+```bash
+# Unit + integration tests (~13s)
+npm test
 
-| Token | Hex | Usage |
+# Watch mode during development
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+
+# E2E tests (install browsers first)
+npx playwright install
+npm run test:e2e
+
+# E2E with interactive UI
+npm run test:e2e:ui
+
+# Everything
+npm run test:all
+```
+
+The test suite covers the full pipeline: swipe logic, library CRUD, AI generation (MSW network interception), Supabase auth and sync (spy mocks), and localStorage persistence across real page reloads (Playwright).
+
+---
+
+## Themes
+
+Switch between five themes in the sidebar:
+
+| Theme | Background | Accent |
 |---|---|---|
-| Background | `#1c1208` | App background — dark charred bark |
-| Surface | `#251a0a` | Elevated surfaces |
-| Card | `#3a2912` | Card background — worn leather |
-| Card hover | `#43301a` | Interactive card hover state |
-| Accent | `#c8761a` | Burnt amber — primary accent, progress bars, CTAs |
-| Accent hover | `#e08920` | Warm ember — hover state |
-| Text primary | `#f5e6cc` | Parchment cream |
-| Text secondary | `#a88b6a` | Dry clay |
-| Text faint | `#5c4530` | Dried leaf shadow |
-| Danger | `#b83222` | Deep crimson — review/error states |
-| Difficulty 1 | `#7daa52` | Sage green — Intro |
-| Difficulty 2 | `#c8761a` | Burnt amber — Core |
-| Difficulty 3 | `#b83222` | Crimson — Advanced |
+| **Rustic Autumn** | Dark charred bark `#1c1208` | Burnt amber `#c8761a` |
+| **Midnight** | Deep navy `#0d0f18` | Electric blue `#5b8de8` |
+| **Forest** | Dark moss `#0a1209` | Sage green `#4a9e5c` |
+| **Slate** | Charcoal `#0f1117` | Cool periwinkle `#7c9ef0` |
+| **Obsidian** | Pure black `#000000` | Gold `#d4a017` |
 
-Typography follows the system font stack with SF Pro Rounded as the preferred face on iOS — no external font dependencies, zero layout shift.
+Your selected theme persists across sessions via localStorage.
 
 ---
 
 ## Roadmap
 
 - [x] AI-generated card content (Groq / Llama 3.3 70B)
-- [ ] Export progress as JSON
+- [x] Starred cards + dedicated starred sessions
+- [x] Undo last swipe
+- [x] Cloud sync across devices (Supabase)
+- [x] Google OAuth + magic link sign-in
+- [x] Multiple themes
+- [x] Community decks
+- [x] Full behavioral test suite (180 tests)
+- [ ] Export progress as JSON backup
 - [ ] Spaced repetition scheduling for the review queue
-- [ ] Multiple library profiles
 - [ ] Card search
-- [ ] Streak tracking (without toxic gamification)
 - [ ] Share topics as links
+- [ ] Streak tracking
 
 ---
 
@@ -258,9 +319,11 @@ Typography follows the system font stack with SF Pro Rounded as the preferred fa
 
 1. Fork the repo
 2. Create a branch: `git checkout -b feature/your-feature`
-3. Commit: `git commit -m "add your feature"`
+3. Make your changes — run `npm test` before committing
 4. Push: `git push origin feature/your-feature`
 5. Open a pull request
+
+See `handoff.md` for a complete engineering reference: architecture, state model, data schemas, and known technical debt.
 
 ---
 
