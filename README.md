@@ -45,6 +45,7 @@ Cards are **ordered**. You move through a topic sequentially. When you finish, y
 
 ### Content
 - **AI card generation** — type any topic and generate a full sequenced deck via Groq (Llama 3.3 70B)
+- **AI rate limiting** — 1000 AI cards per day (free tier); resets at 00:00 GMT. Usage bar in sidebar with live remaining count. Enforced server-side per authenticated user, client-side for anonymous sessions.
 - **Community decks** — curated topics (Stoic Philosophy, Financial Literacy, Public Speaking) ready to add
 - **Full library CRUD** — create directories, topics, and cards entirely in-app
 - **JSON import** — paste any compatible topic JSON to add new content instantly
@@ -53,8 +54,11 @@ Cards are **ordered**. You move through a topic sequentially. When you finish, y
 ### Sync & Account
 - **Sign in with Google** — one tap, OAuth via Supabase
 - **Magic link** — sign in via email, no password required
+- **Offline-first** — all reads and writes go to localStorage first; cloud sync is best-effort, never blocking
 - **Cloud sync** — library and progress sync automatically across devices (2-second debounce)
+- **Retry on reconnect** — if sync fails while offline, the app retries automatically the moment connectivity returns. No data loss.
 - **Conflict resolution** — when signing in on a new device with existing local data, choose to upload local or pull from cloud
+- **Clean sign-out** — signing out resets the app to demo-deck defaults; the next session starts as a clean slate
 
 ### Experience
 - **5 themes** — Rustic Autumn, Midnight, Forest, Slate, Obsidian; persists across sessions
@@ -151,10 +155,32 @@ Set these in Vercel → Project → Settings → Environment Variables (or `.env
 | Key | Where to get it | Required for |
 |---|---|---|
 | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) | AI card generation |
-| `VITE_SUPABASE_URL` | Supabase project → Settings → API | Auth + cloud sync |
-| `VITE_SUPABASE_ANON_KEY` | Supabase project → Settings → API | Auth + cloud sync |
+| `VITE_SUPABASE_URL` | Supabase → Project Settings → API | Auth + cloud sync |
+| `VITE_SUPABASE_ANON_KEY` | Supabase → Project Settings → API | Auth + cloud sync |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → service_role | Server-side AI rate limiting |
+
+> `SUPABASE_SERVICE_ROLE_KEY` is server-only — no `VITE_` prefix. Never expose it to the browser.
 
 **Everything works without these** — AI generation shows an error, auth/sync is silently disabled, and the app runs fully offline-only.
+
+### Supabase setup (one-time)
+
+If using auth + AI rate limiting, create the `ai_usage` table in your Supabase SQL editor:
+
+```sql
+CREATE TABLE public.ai_usage (
+  user_id     uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  usage_date  date        NOT NULL,
+  cards_count integer     NOT NULL DEFAULT 0,
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, usage_date)
+);
+ALTER TABLE public.ai_usage ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ai_usage: own rows only"
+  ON public.ai_usage FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+```
 
 ### Other platforms
 
@@ -226,29 +252,60 @@ Alternatively, use the **Copy Master Prompt** button and paste into any LLM (Cha
 ```
 Deckwise/
 ├── api/
-│   └── generate.js           ← Vercel serverless — Groq AI proxy
+│   └── generate.js                   ← Vercel serverless — Groq AI proxy + rate limiting
 ├── e2e/
-│   ├── learn-flow.spec.js    ← Playwright E2E — learn screen, completion, sidebar
-│   └── persistence.spec.js   ← Playwright E2E — localStorage survives page reloads
+│   ├── learn-flow.spec.js            ← Playwright E2E — learn screen, completion, sidebar
+│   └── persistence.spec.js           ← Playwright E2E — localStorage survives reloads
 ├── public/
-│   ├── icon-192.png          ← PWA icon (iOS home screen)
-│   └── icon-512.png          ← PWA icon (splash screen)
+│   ├── icon-192.png                  ← PWA icon (iOS home screen)
+│   └── icon-512.png                  ← PWA icon (splash screen)
 ├── src/
-│   ├── main.jsx              ← React entry point
-│   ├── App.jsx               ← Entire application (~1400 lines)
-│   ├── lib.js                ← Pure utility functions (tree traversal, localStorage)
-│   ├── supabase.js           ← Supabase client (null when unconfigured)
+│   ├── main.jsx                      ← React entry point
+│   ├── App.jsx                       ← Orchestrator (~307 lines): state, routing, callbacks
+│   ├── lib.js                        ← Pure utility functions (tree traversal, localStorage)
+│   ├── supabase.js                   ← Supabase client (null when unconfigured)
+│   ├── theme.js                      ← Theme constants + mutable style singleton (S, F)
+│   ├── audio.js                      ← Web Audio engine (hap, snd, synthesized sounds)
+│   ├── ai.js                         ← generateCards(), AI_TIERS, todayGMT()
+│   ├── constants.js                  ← DEMO_DATA, COMMUNITY_DECKS
+│   ├── hooks/
+│   │   ├── useSync.js                ← Cloud sync, offline detection, retry on reconnect
+│   │   └── useAiUsage.js             ← AI usage state, GMT rollover, localStorage persistence
+│   ├── components/
+│   │   ├── ui/
+│   │   │   ├── SpotifyBtn.jsx        ← Reusable pill button
+│   │   │   ├── Modal.jsx             ← Base modal wrapper
+│   │   │   └── Field.jsx             ← Labelled input field
+│   │   ├── library/
+│   │   │   ├── LibraryEditor.jsx     ← Library root panel
+│   │   │   ├── EditorTree.jsx        ← Recursive tree renderer
+│   │   │   ├── DirectoryNode.jsx     ← Single directory/topic row
+│   │   │   ├── CardSetManager.jsx    ← Card list + reorder within a topic
+│   │   │   ├── DirectoryModal.jsx    ← Create/rename directory dialog
+│   │   │   ├── TopicModal.jsx        ← Create/rename topic dialog
+│   │   │   ├── CardModal.jsx         ← Create/edit card dialog
+│   │   │   └── ImportModal.jsx       ← JSON import dialog
+│   │   ├── ai/
+│   │   │   ├── PromptContent.jsx     ← AI generation form + results
+│   │   │   └── PromptModal.jsx       ← Modal wrapper for PromptContent
+│   │   ├── DraggableCard.jsx         ← Swipeable card with spring physics
+│   │   ├── ActionBar.jsx             ← Swipe action buttons
+│   │   ├── ProgressBar.jsx           ← Session progress indicator
+│   │   ├── CompletionScreen.jsx      ← End-of-deck summary
+│   │   ├── AuthModal.jsx             ← Google OAuth + magic link sign-in
+│   │   ├── MergeModal.jsx            ← Cloud vs local conflict resolution
+│   │   └── Sidebar.jsx               ← Nav, theme switcher, sync status, AI usage bar
 │   ├── test/
-│   │   ├── setup.js          ← Vitest global setup + browser API mocks
-│   │   ├── server.js         ← MSW server instance
-│   │   └── handlers.js       ← Default MSW network handlers
+│   │   ├── setup.js                  ← Vitest global setup + browser API mocks
+│   │   ├── server.js                 ← MSW server instance
+│   │   └── handlers.js               ← Default MSW network handlers
 │   └── __tests__/
-│       ├── fixtures.js       ← Shared test data
-│       ├── unit/             ← Pure function tests
-│       ├── api/              ← Serverless handler tests
-│       └── integration/      ← Full app render tests (MSW + Supabase spies)
-├── vite.config.js            ← Vite + PWA plugin config
-├── playwright.config.js      ← E2E test config
+│       ├── fixtures.js               ← Shared test data
+│       ├── unit/                     ← Pure function tests
+│       ├── api/                      ← Serverless handler tests
+│       └── integration/              ← Full app render tests (MSW + Supabase spies)
+├── vite.config.js                    ← Vite + PWA + Workbox caching config
+├── playwright.config.js              ← E2E test config
 └── package.json
 ```
 
@@ -307,6 +364,9 @@ Your selected theme persists across sessions via localStorage.
 - [x] Multiple themes
 - [x] Community decks
 - [x] Full behavioral test suite (180 tests)
+- [x] Offline-first architecture — localStorage primary, cloud best-effort, retry on reconnect
+- [x] AI rate limiting — 1000 cards/day (free tier), server-enforced, daily usage bar in sidebar
+- [x] Clean sign-out — full local state reset on sign-out
 - [ ] Export progress as JSON backup
 - [ ] Spaced repetition scheduling for the review queue
 - [ ] Card search
@@ -322,8 +382,6 @@ Your selected theme persists across sessions via localStorage.
 3. Make your changes — run `npm test` before committing
 4. Push: `git push origin feature/your-feature`
 5. Open a pull request
-
-See `handoff.md` for a complete engineering reference: architecture, state model, data schemas, and known technical debt.
 
 ---
 
