@@ -59,42 +59,13 @@ export default function App(){
     DEMO_DATA,
   });
 
-  // ── Supabase session listener ─────────────────────────────────────────────────
-  useEffect(()=>{
-    if(!supabase)return;
-    supabase.auth.getSession().then(({data:{session}})=>{
-      const u=session?.user??null;
-      setUser(u);userRef.current=u;
-      if(u)loadCloudData(u.id);
-    });
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
-      const u=session?.user??null;
-      setUser(u);userRef.current=u;
-      if(event==="SIGNED_IN"&&u){setShowAuth(false);loadCloudData(u.id);}
-      if(event==="SIGNED_OUT"){cloudSyncEnabled.current=false;}
-    });
-    return()=>subscription.unsubscribe();
-  },[loadCloudData]);
-
-  // ── Load from localStorage on boot ──────────────────────────────────────────
-  useEffect(()=>{
-    setCompletionMap(lsLoad(KEYS.completion,{}));
-    setRevisitIds(lsLoad(KEYS.revisit,[]));
-    setConfusedIds(lsLoad(KEYS.confused,[]));
-    setStarredIds(lsLoad(KEYS.starred,[]));
-    setProgressMap(lsLoad(KEYS.progress,{}));
-    setLibrary(lsLoad(KEYS.library,null)||DEMO_DATA);
-    initAiUsage();
-    setReady(true);
-  },[]);
-
   // ── Actions ──────────────────────────────────────────────────────────────────
-  const signOut=useCallback(async()=>{
-    if(!supabase)return;
+
+  // Resets all in-memory state and localStorage to demo defaults.
+  // Defined early so the auth listener below can reference it.
+  // Called from signOut() and from the SIGNED_OUT auth event (session expiry).
+  const clearLocalSession=useCallback((userId)=>{
     cloudSyncEnabled.current=false;
-    const userId=userRef.current?.id;
-    await supabase.auth.signOut();
-    // Clear all local data — next session starts as a fresh anonymous user
     const today=new Date().toISOString().slice(0,10);
     setLibrary(DEMO_DATA);
     setCompletionMap({});
@@ -111,6 +82,48 @@ export default function App(){
     lsSave(KEYS.progress,{});
     lsSave(KEYS.aiUsage,{date:today,count:0});
     if(userId)localStorage.removeItem(`sl-synced-${userId}`);
+  },[]);
+
+  const signOut=useCallback(async()=>{
+    if(!supabase)return;
+    const userId=userRef.current?.id;
+    // Reset UI immediately — user must never see their data after clicking sign out,
+    // regardless of whether the server call succeeds.
+    clearLocalSession(userId);
+    // Fire-and-forget: the UI is already clean; ignore network errors.
+    try{await supabase.auth.signOut();}catch{}
+  },[clearLocalSession]);
+
+  // ── Supabase session listener ─────────────────────────────────────────────────
+  useEffect(()=>{
+    if(!supabase)return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const u=session?.user??null;
+      setUser(u);userRef.current=u;
+      if(u)loadCloudData(u.id);
+    });
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+      const prevUserId=userRef.current?.id; // capture before overwrite
+      const u=session?.user??null;
+      setUser(u);userRef.current=u;
+      if(event==="SIGNED_IN"&&u){setShowAuth(false);loadCloudData(u.id);}
+      // SIGNED_OUT fires for both manual sign-out and automatic session expiry.
+      // clearLocalSession is idempotent — safe to call even if signOut() already ran it.
+      if(event==="SIGNED_OUT"){clearLocalSession(prevUserId);}
+    });
+    return()=>subscription.unsubscribe();
+  },[loadCloudData,clearLocalSession]);
+
+  // ── Load from localStorage on boot ──────────────────────────────────────────
+  useEffect(()=>{
+    setCompletionMap(lsLoad(KEYS.completion,{}));
+    setRevisitIds(lsLoad(KEYS.revisit,[]));
+    setConfusedIds(lsLoad(KEYS.confused,[]));
+    setStarredIds(lsLoad(KEYS.starred,[]));
+    setProgressMap(lsLoad(KEYS.progress,{}));
+    setLibrary(lsLoad(KEYS.library,null)||DEMO_DATA);
+    initAiUsage();
+    setReady(true);
   },[]);
 
   const handleKeepLocal=useCallback(async()=>{
