@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { supabase } from "./supabase.js";
 
 const DEMO_DATA = {
   id:"root",title:"My Library",type:"directory",
@@ -599,7 +600,144 @@ function LibraryEditor({library,onSave,onClose}){
   );
 }
 
-function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck}){
+// ── Google logo SVG (official colours) ───────────────────────────────────────
+const GoogleIcon=()=>(
+  <svg width="18" height="18" viewBox="0 0 18 18" style={{flexShrink:0}}>
+    <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
+    <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
+    <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
+    <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
+  </svg>
+);
+
+function AuthModal({onClose}){
+  const[email,setEmail]=useState("");
+  const[sent,setSent]=useState(false);
+  const[loading,setLoading]=useState(false);
+  const[err,setErr]=useState(null);
+  const[view,setView]=useState("main"); // "main" | "email"
+
+  const signInGoogle=async()=>{
+    if(!supabase)return;
+    hap.medium();
+    await supabase.auth.signInWithOAuth({
+      provider:"google",
+      options:{redirectTo:window.location.origin}
+    });
+  };
+
+  // Apple — uncomment when you have Apple Developer credentials configured in Supabase
+  // const signInApple=async()=>{
+  //   if(!supabase)return;
+  //   hap.medium();
+  //   await supabase.auth.signInWithOAuth({
+  //     provider:"apple",
+  //     options:{redirectTo:window.location.origin}
+  //   });
+  // };
+
+  const sendMagicLink=async()=>{
+    if(!supabase||!email.trim()){return;}
+    setLoading(true);setErr(null);
+    const{error}=await supabase.auth.signInWithOtp({
+      email:email.trim(),
+      options:{emailRedirectTo:window.location.origin}
+    });
+    setLoading(false);
+    if(error){hap.error();setErr(error.message);return;}
+    hap.success();setSent(true);
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:S.elevated,borderRadius:12,width:"100%",maxWidth:380,padding:32,boxShadow:"0 24px 80px rgba(0,0,0,0.8)",position:"relative"}}>
+        {/* Close */}
+        <button onClick={()=>{hap.light();onClose();}} style={{position:"absolute",top:16,right:16,background:"transparent",border:"none",color:S.subdued,fontSize:22,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
+          onMouseEnter={e=>e.currentTarget.style.color=S.white}
+          onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24}}>
+          <img src="/icon-192.png" alt="Deckwise" style={{width:36,height:36,borderRadius:8}}/>
+          <span style={{fontSize:18,fontWeight:700,color:S.white,fontFamily:F}}>Deckwise</span>
+        </div>
+
+        <div style={{fontSize:20,fontWeight:700,color:S.white,fontFamily:F,marginBottom:6,letterSpacing:"-0.02em"}}>Sign in</div>
+        <div style={{fontSize:13,color:S.subdued,fontFamily:F,marginBottom:28,lineHeight:1.5}}>Sync your library and progress across all your devices.</div>
+
+        {!sent?(
+          <>
+            {/* Google */}
+            <button onClick={signInGoogle}
+              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,width:"100%",padding:"13px 20px",background:"#fff",borderRadius:500,border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#3c4043",fontFamily:F,marginBottom:12,boxShadow:"0 2px 10px rgba(0,0,0,0.3)",transition:"transform 0.1s,box-shadow 0.1s"}}
+              onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.02)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.4)";}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.3)";}}>
+              <GoogleIcon/>Sign in with Google
+            </button>
+
+            {/* Apple — uncomment when ready */}
+            {/* <button onClick={signInApple}
+              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,width:"100%",padding:"13px 20px",background:"#000",borderRadius:500,border:"1px solid #333",cursor:"pointer",fontSize:14,fontWeight:600,color:"#fff",fontFamily:F,marginBottom:12}}>
+              <span style={{fontSize:16}}>🍎</span>Sign in with Apple
+            </button> */}
+
+            {/* Divider */}
+            <div style={{display:"flex",alignItems:"center",gap:12,margin:"20px 0"}}>
+              <div style={{flex:1,height:1,background:S.border}}/>
+              <span style={{fontSize:12,color:S.faint,fontFamily:F}}>or continue with email</span>
+              <div style={{flex:1,height:1,background:S.border}}/>
+            </div>
+
+            {/* Email */}
+            <input
+              type="email" value={email} onChange={e=>setEmail(e.target.value)}
+              placeholder="your@email.com"
+              style={{...inpStyle(),marginBottom:10}}
+              onFocus={e=>e.target.style.borderColor=S.white}
+              onBlur={e=>e.target.style.borderColor=S.border}
+              onKeyDown={e=>{if(e.key==="Enter")sendMagicLink();}}
+            />
+            {err&&<div style={{fontSize:12,color:S.danger,fontFamily:F,marginBottom:8,lineHeight:1.5}}>{err}</div>}
+            <button onClick={sendMagicLink} disabled={loading||!email.trim()}
+              style={{width:"100%",padding:"13px 0",background:email.trim()&&!loading?S.green:"transparent",border:`1px solid ${email.trim()&&!loading?S.green:S.border}`,borderRadius:500,color:email.trim()&&!loading?"#1c1208":S.subdued,fontSize:14,fontWeight:700,cursor:email.trim()&&!loading?"pointer":"default",fontFamily:F,transition:"all 0.2s"}}>
+              {loading?"Sending…":"Send magic link"}
+            </button>
+          </>
+        ):(
+          <div style={{textAlign:"center",padding:"20px 0"}}>
+            <div style={{fontSize:40,marginBottom:16}}>📬</div>
+            <div style={{fontSize:16,fontWeight:700,color:S.white,fontFamily:F,marginBottom:8}}>Check your inbox</div>
+            <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>We sent a sign-in link to <strong style={{color:S.white}}>{email}</strong>. Tap the link in that email to continue.</div>
+            <button onClick={()=>setSent(false)} style={{marginTop:20,background:"transparent",border:"none",color:S.faint,fontSize:13,cursor:"pointer",fontFamily:F,textDecoration:"underline"}}>Use a different email</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MergeModal({onKeepLocal,onUseCloud}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:S.elevated,borderRadius:12,width:"100%",maxWidth:360,padding:32,boxShadow:"0 24px 80px rgba(0,0,0,0.8)"}}>
+        <div style={{fontSize:20,fontWeight:700,color:S.white,fontFamily:F,marginBottom:8,letterSpacing:"-0.02em"}}>Two sets of data found</div>
+        <div style={{fontSize:13,color:S.subdued,fontFamily:F,marginBottom:28,lineHeight:1.6}}>You have local progress on this device and existing cloud data. Which would you like to keep?</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <button onClick={()=>{hap.success();onKeepLocal();}}
+            style={{width:"100%",padding:"13px 0",background:S.green,border:"none",borderRadius:500,color:"#1c1208",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+            Upload local data → cloud
+          </button>
+          <button onClick={()=>{hap.medium();onUseCloud();}}
+            style={{width:"100%",padding:"13px 0",background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,color:S.subdued,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+            Use cloud data (discard local)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,onSignIn,onSignOut}){
   const addedIds=new Set(flattenTopics(library||{id:"root",type:"directory",children:[]}).map(t=>t.id));
   return(
     <>
@@ -615,6 +753,46 @@ function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck}){
             onMouseEnter={e=>e.currentTarget.style.color=S.white}
             onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
         </div>
+
+        {/* ── Account ── */}
+        {user?(
+          <div style={{padding:"16px",borderBottom:`1px solid ${S.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              {user.user_metadata?.avatar_url?(
+                <img src={user.user_metadata.avatar_url} alt="" style={{width:36,height:36,borderRadius:"50%",flexShrink:0}}/>
+              ):(
+                <div style={{width:36,height:36,borderRadius:"50%",background:`${S.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0,color:S.green,fontWeight:700}}>
+                  {(user.user_metadata?.full_name||user.email||"?")[0].toUpperCase()}
+                </div>
+              )}
+              <div style={{flex:1,minWidth:0}}>
+                {user.user_metadata?.full_name&&<div style={{fontSize:13,fontWeight:700,color:S.white,fontFamily:F,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.user_metadata.full_name}</div>}
+                <div style={{fontSize:11,color:S.faint,fontFamily:F,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</div>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:S.green,fontFamily:F,marginBottom:10,display:"flex",alignItems:"center",gap:5}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:S.green,display:"inline-block"}}/>
+              Syncing to cloud
+            </div>
+            <button onClick={()=>{hap.medium();onSignOut();}}
+              style={{width:"100%",padding:"8px 0",background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,color:S.subdued,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=S.danger;e.currentTarget.style.color=S.danger;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=S.border;e.currentTarget.style.color=S.subdued;}}>
+              Sign out
+            </button>
+          </div>
+        ):(
+          <div style={{padding:"16px",borderBottom:`1px solid ${S.border}`}}>
+            <div style={{fontSize:13,fontWeight:700,color:S.white,fontFamily:F,marginBottom:4}}>Sign in to sync</div>
+            <div style={{fontSize:12,color:S.faint,fontFamily:F,marginBottom:12,lineHeight:1.5}}>Access your library on any device.</div>
+            <button onClick={()=>{hap.medium();onSignIn();}}
+              style={{width:"100%",padding:"10px 0",background:S.green,border:"none",borderRadius:500,color:"#1c1208",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"transform 0.1s"}}
+              onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"}
+              onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+              Sign in
+            </button>
+          </div>
+        )}
 
         {/* ── Color Profiles ── */}
         <div style={{padding:"20px 16px 16px"}}>
@@ -915,6 +1093,125 @@ export default function App(){
   const[themeName,setThemeName]=useState(_t);
   const[cardHistory,setCardHistory]=useState([]);
 
+  // ── Auth & cloud sync state ───────────────────────────────────────────────
+  const[user,setUser]=useState(null);
+  const[showAuth,setShowAuth]=useState(false);
+  const[mergeCandidate,setMergeCandidate]=useState(null);
+  const syncTimerRef=useRef(null);
+  const cloudSyncEnabled=useRef(false);
+  const userRef=useRef(null);
+  useEffect(()=>{userRef.current=user;},[user]);
+
+  // Writes current localStorage snapshot to Supabase immediately
+  const syncNow=useCallback(async(userId)=>{
+    if(!supabase||!userId)return;
+    try{
+      await supabase.from("user_data").upsert({
+        user_id:userId,
+        library:lsLoad(KEYS.library,DEMO_DATA),
+        completion_map:lsLoad(KEYS.completion,{}),
+        revisit_ids:lsLoad(KEYS.revisit,[]),
+        confused_ids:lsLoad(KEYS.confused,[]),
+        starred_ids:lsLoad(KEYS.starred,[]),
+        progress_map:lsLoad(KEYS.progress,{}),
+        updated_at:new Date().toISOString()
+      });
+    }catch(e){console.error("sync error",e);}
+  },[]);
+
+  // Overwrites in-memory + localStorage state with cloud data
+  const applyCloudData=useCallback((data)=>{
+    cloudSyncEnabled.current=false;
+    if(data.library){setLibrary(data.library);lsSave(KEYS.library,data.library);}
+    if(data.completion_map){setCompletionMap(data.completion_map);lsSave(KEYS.completion,data.completion_map);}
+    if(data.revisit_ids){setRevisitIds(data.revisit_ids);lsSave(KEYS.revisit,data.revisit_ids);}
+    if(data.confused_ids){setConfusedIds(data.confused_ids);lsSave(KEYS.confused,data.confused_ids);}
+    if(data.starred_ids){setStarredIds(data.starred_ids);lsSave(KEYS.starred,data.starred_ids);}
+    if(data.progress_map){setProgressMap(data.progress_map);lsSave(KEYS.progress,data.progress_map);}
+    // Small delay before re-enabling sync to let React batch the state updates
+    setTimeout(()=>{cloudSyncEnabled.current=true;},600);
+  },[]);
+
+  const loadCloudData=useCallback(async(userId)=>{
+    if(!supabase)return;
+    try{
+      const{data,error}=await supabase.from("user_data").select("*").eq("user_id",userId).single();
+      if(error&&error.code!=="PGRST116")return; // PGRST116 = no rows found
+      if(!data){
+        // First sign-in ever — push local data up and start syncing
+        cloudSyncEnabled.current=true;
+        await syncNow(userId);
+        return;
+      }
+      // Check if there is meaningful local data that might conflict with cloud
+      const localLib=lsLoad(KEYS.library,null);
+      const hasLocalData=localLib&&JSON.stringify(localLib)!==JSON.stringify(DEMO_DATA);
+      const hasLocalProgress=Object.keys(lsLoad(KEYS.completion,{})).length>0;
+      if(hasLocalData||hasLocalProgress){
+        setMergeCandidate(data); // Show merge choice modal
+      }else{
+        applyCloudData(data);
+      }
+    }catch(e){console.error("load cloud error",e);}
+  },[syncNow,applyCloudData]);
+
+  // ── Supabase session listener ─────────────────────────────────────────────
+  useEffect(()=>{
+    if(!supabase)return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const u=session?.user??null;
+      setUser(u);userRef.current=u;
+      if(u)loadCloudData(u.id);
+    });
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+      const u=session?.user??null;
+      setUser(u);userRef.current=u;
+      if(event==="SIGNED_IN"&&u){setShowAuth(false);loadCloudData(u.id);}
+      if(event==="SIGNED_OUT"){cloudSyncEnabled.current=false;clearTimeout(syncTimerRef.current);}
+    });
+    return()=>subscription.unsubscribe();
+  },[loadCloudData]);
+
+  // ── Debounced cloud sync — 2 s after any data change ─────────────────────
+  useEffect(()=>{
+    if(!supabase||!userRef.current||!cloudSyncEnabled.current)return;
+    clearTimeout(syncTimerRef.current);
+    syncTimerRef.current=setTimeout(async()=>{
+      if(!userRef.current)return;
+      try{
+        await supabase.from("user_data").upsert({
+          user_id:userRef.current.id,
+          library,
+          completion_map:completionMap,
+          revisit_ids:revisitIds,
+          confused_ids:confusedIds,
+          starred_ids:starredIds,
+          progress_map:progressMap,
+          updated_at:new Date().toISOString()
+        });
+      }catch(e){console.error("sync error",e);}
+    },2000);
+    return()=>clearTimeout(syncTimerRef.current);
+  },[library,completionMap,revisitIds,confusedIds,starredIds,progressMap]);
+
+  const signOut=useCallback(async()=>{
+    if(!supabase)return;
+    cloudSyncEnabled.current=false;
+    clearTimeout(syncTimerRef.current);
+    await supabase.auth.signOut();
+  },[]);
+
+  const handleKeepLocal=useCallback(async()=>{
+    setMergeCandidate(null);
+    cloudSyncEnabled.current=true;
+    await syncNow(userRef.current?.id);
+  },[syncNow]);
+
+  const handleUseCloud=useCallback(()=>{
+    if(mergeCandidate)applyCloudData(mergeCandidate);
+    setMergeCandidate(null);
+  },[mergeCandidate,applyCloudData]);
+
   // ── load from localStorage on boot ─────────────────────────────────────────
   useEffect(()=>{
     setCompletionMap(lsLoad(KEYS.completion,{}));
@@ -1114,7 +1411,9 @@ export default function App(){
 
       {showEditor&&library&&<LibraryEditor library={library} onSave={saveLibrary} onClose={()=>setShowEditor(false)}/>}
       {showQuickGenerate&&<PromptModal onClose={()=>setShowQuickGenerate(false)} onImport={handleDirectImport}/>}
-      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport}/>
+      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport} user={user} onSignIn={()=>{setSidebarOpen(false);setShowAuth(true);}} onSignOut={signOut}/>
+      {showAuth&&<AuthModal onClose={()=>setShowAuth(false)}/>}
+      {mergeCandidate&&<MergeModal onKeepLocal={handleKeepLocal} onUseCloud={handleUseCloud}/>}
     </div>
   );
 }
