@@ -1113,18 +1113,18 @@ export default function App(){
   // Writes current localStorage snapshot to Supabase immediately
   const syncNow=useCallback(async(userId)=>{
     if(!supabase||!userId)return;
-    try{
-      await supabase.from("user_data").upsert({
-        user_id:userId,
-        library:lsLoad(KEYS.library,DEMO_DATA),
-        completion_map:lsLoad(KEYS.completion,{}),
-        revisit_ids:lsLoad(KEYS.revisit,[]),
-        confused_ids:lsLoad(KEYS.confused,[]),
-        starred_ids:lsLoad(KEYS.starred,[]),
-        progress_map:lsLoad(KEYS.progress,{}),
-        updated_at:new Date().toISOString()
-      });
-    }catch(e){console.error("sync error",e);}
+    const{error}=await supabase.from("user_data").upsert({
+      user_id:userId,
+      library:lsLoad(KEYS.library,DEMO_DATA),
+      completion_map:lsLoad(KEYS.completion,{}),
+      revisit_ids:lsLoad(KEYS.revisit,[]),
+      confused_ids:lsLoad(KEYS.confused,[]),
+      starred_ids:lsLoad(KEYS.starred,[]),
+      progress_map:lsLoad(KEYS.progress,{}),
+      updated_at:new Date().toISOString()
+    });
+    if(error)console.error("syncNow error",error.message);
+    return error;
   },[]);
 
   // Overwrites in-memory + localStorage state with cloud data
@@ -1188,23 +1188,23 @@ export default function App(){
     syncTimerRef.current=setTimeout(async()=>{
       if(!userRef.current)return;
       setSyncStatus("syncing");
-      try{
-        await supabase.from("user_data").upsert({
-          user_id:userRef.current.id,
-          library,
-          completion_map:completionMap,
-          revisit_ids:revisitIds,
-          confused_ids:confusedIds,
-          starred_ids:starredIds,
-          progress_map:progressMap,
-          updated_at:new Date().toISOString()
-        });
-        setSyncStatus("synced");
-        setTimeout(()=>setSyncStatus("idle"),3000);
-      }catch(e){
-        console.error("sync error",e);
+      const{error}=await supabase.from("user_data").upsert({
+        user_id:userRef.current.id,
+        library,
+        completion_map:completionMap,
+        revisit_ids:revisitIds,
+        confused_ids:confusedIds,
+        starred_ids:starredIds,
+        progress_map:progressMap,
+        updated_at:new Date().toISOString()
+      });
+      if(error){
+        console.error("sync error",error.message);
         setSyncStatus("error");
         setTimeout(()=>setSyncStatus("idle"),4000);
+      }else{
+        setSyncStatus("synced");
+        setTimeout(()=>setSyncStatus("idle"),3000);
       }
     },2000);
     return()=>clearTimeout(syncTimerRef.current);
