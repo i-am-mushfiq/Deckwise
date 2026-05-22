@@ -56,6 +56,7 @@ export const KEYS = {
   starred:    "sl-star",
   progress:   "sl-prog",
   library:    "sl-lib",
+  aiUsage:    "sl-ai-usage",
 };
 
 // ── LOCALSTORAGE HELPERS ──────────────────────────────────────────────────────
