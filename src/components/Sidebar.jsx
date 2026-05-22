@@ -1,3 +1,4 @@
+import { X, Check } from 'lucide-react';
 import { S, F, THEME_META } from '../theme.js';
 import { hap, snd } from '../audio.js';
 import { flattenTopics } from '../lib.js';
@@ -5,13 +6,13 @@ import { COMMUNITY_DECKS } from '../constants.js';
 
 export function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,onSignIn,onSignOut,syncStatus="idle",aiUsage=0,aiLimit=1000}){
   const syncLabel={
-    idle:{text:"Synced",color:S.faint,dot:S.faint},
-    pending:{text:"Saving…",color:S.subdued,dot:S.subdued},
-    syncing:{text:"Syncing…",color:S.green,dot:S.green},
-    synced:{text:"Synced ✓",color:S.green,dot:S.green},
-    error:{text:"Sync failed",color:S.danger,dot:S.danger},
-    offline:{text:"Offline — saved locally",color:"#f59e0b",dot:"#f59e0b"},
-  }[syncStatus]||{text:"",color:S.faint,dot:S.faint};
+    idle:{text:"Synced",color:S.faint,dot:S.faint,check:false},
+    pending:{text:"Saving…",color:S.subdued,dot:S.subdued,check:false},
+    syncing:{text:"Syncing…",color:S.green,dot:S.green,check:false},
+    synced:{text:"Synced",color:S.green,dot:S.green,check:true},
+    error:{text:"Sync failed",color:S.danger,dot:S.danger,check:false},
+    offline:{text:"Offline — saved locally",color:"#f59e0b",dot:"#f59e0b",check:false},
+  }[syncStatus]||{text:"",color:S.faint,dot:S.faint,check:false};
   const addedIds=new Set(flattenTopics(library||{id:"root",type:"directory",children:[]}).map(t=>t.id));
   return(
     <>
@@ -23,9 +24,11 @@ export function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,o
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"20px 16px 16px",borderBottom:`1px solid ${S.border}`,flexShrink:0}}>
           <img src="/icon-192.png" alt="Deckwise" style={{width:28,height:28,borderRadius:6}}/>
           <span style={{fontSize:16,fontWeight:700,color:S.white,fontFamily:F,flex:1,letterSpacing:"-0.01em"}}>Deckwise</span>
-          <button onClick={()=>{hap.light();onClose();}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:20,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0}}
+          <button aria-label="Close sidebar" onClick={()=>{hap.light();onClose();}} style={{background:"transparent",border:"none",color:S.subdued,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0}}
             onMouseEnter={e=>e.currentTarget.style.color=S.white}
-            onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+            onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
+            <X size={16}/>
+          </button>
         </div>
 
         {/* ── Account ── */}
@@ -47,6 +50,7 @@ export function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,o
             <div style={{fontSize:11,color:syncLabel.color,fontFamily:F,marginBottom:10,display:"flex",alignItems:"center",gap:5,transition:"color 0.3s"}}>
               <span style={{width:6,height:6,borderRadius:"50%",background:syncLabel.dot,display:"inline-block",transition:"background 0.3s"}}/>
               {syncLabel.text}
+              {syncLabel.check&&<Check size={11} color={syncLabel.color} style={{marginLeft:1}}/>}
             </div>
             <button onClick={()=>{hap.medium();onSignOut();}}
               style={{width:"100%",padding:"8px 0",background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,color:S.subdued,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s"}}
@@ -82,7 +86,7 @@ export function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,o
                     <div style={{position:"absolute",bottom:0,right:0,width:"52%",height:"52%",background:tm.accent,borderTopLeftRadius:5}}/>
                   </div>
                   <span style={{fontSize:13,fontWeight:700,color:active?S.white:S.subdued,fontFamily:F,flex:1,transition:"color 0.15s"}}>{tm.name}</span>
-                  {active&&<span style={{color:tm.accent,fontSize:15,flexShrink:0}}>✓</span>}
+                  {active&&<Check size={15} color={tm.accent}/>}
                 </button>
               );
             })}
@@ -121,10 +125,10 @@ export function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,o
                   <div style={{fontSize:11,color:S.faint,fontFamily:F,marginBottom:12}}>{deck.cards.length} cards</div>
                   <button
                     onClick={()=>{if(!added){hap.success();snd.reveal();onAddDeck(deck);}}}
-                    style={{width:"100%",padding:"8px 0",borderRadius:500,background:added?`${S.green}18`:"transparent",border:`1px solid ${added?S.green:S.border}`,color:added?S.green:S.subdued,cursor:added?"default":"pointer",fontSize:12,fontWeight:700,fontFamily:F,transition:"all 0.15s"}}
+                    style={{width:"100%",padding:"8px 0",borderRadius:500,background:added?`${S.green}18`:"transparent",border:`1px solid ${added?S.green:S.border}`,color:added?S.green:S.subdued,cursor:added?"default":"pointer",fontSize:12,fontWeight:700,fontFamily:F,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}
                     onMouseEnter={e=>{if(!added){e.currentTarget.style.borderColor=S.subdued;e.currentTarget.style.color=S.white;}}}
                     onMouseLeave={e=>{if(!added){e.currentTarget.style.borderColor=S.border;e.currentTarget.style.color=S.subdued;}}}>
-                    {added?"Added ✓":"Add to Library"}
+                    {added?<><Check size={13}/>Added</>:"Add to Library"}
                   </button>
                 </div>
               );

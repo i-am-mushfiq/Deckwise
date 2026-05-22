@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, Mail } from 'lucide-react';
 import { S, F, inpStyle } from '../theme.js';
 import { hap } from '../audio.js';
 import { supabase } from '../supabase.js';
@@ -43,9 +44,11 @@ export function AuthModal({onClose}){
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:S.elevated,borderRadius:12,width:"100%",maxWidth:380,padding:32,boxShadow:"0 24px 80px rgba(0,0,0,0.8)",position:"relative"}}>
         {/* Close */}
-        <button onClick={()=>{hap.light();onClose();}} style={{position:"absolute",top:16,right:16,background:"transparent",border:"none",color:S.subdued,fontSize:22,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
+        <button aria-label="Close" onClick={()=>{hap.light();onClose();}} style={{position:"absolute",top:16,right:16,background:"transparent",border:"none",color:S.subdued,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
           onMouseEnter={e=>e.currentTarget.style.color=S.white}
-          onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+          onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
+          <X size={16}/>
+        </button>
 
         {/* Logo */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24}}>
@@ -90,7 +93,11 @@ export function AuthModal({onClose}){
           </>
         ):(
           <div style={{textAlign:"center",padding:"20px 0"}}>
-            <div style={{fontSize:40,marginBottom:16}}>📬</div>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+              <div style={{width:72,height:72,borderRadius:"50%",background:`${S.green}18`,border:`2px solid ${S.green}44`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <Mail size={32} color={S.green}/>
+              </div>
+            </div>
             <div style={{fontSize:16,fontWeight:700,color:S.white,fontFamily:F,marginBottom:8}}>Check your inbox</div>
             <div style={{fontSize:13,color:S.subdued,fontFamily:F,lineHeight:1.6}}>We sent a sign-in link to <strong style={{color:S.white}}>{email}</strong>. Tap the link in that email to continue.</div>
             <button onClick={()=>setSent(false)} style={{marginTop:20,background:"transparent",border:"none",color:S.faint,fontSize:13,cursor:"pointer",fontFamily:F,textDecoration:"underline"}}>Use a different email</button>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Sparkles, Check } from 'lucide-react';
 import { S, F, inpStyle } from '../../theme.js';
 import { hap, snd } from '../../audio.js';
 import { generateCards, AI_TIERS } from '../../ai.js';
@@ -143,7 +144,7 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
       {/* ── Action buttons ── */}
       <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20}}>
         {!generating&&!genResult&&(
-          <SpotifyBtn fullWidth onClick={generate}>Generate with AI ✦</SpotifyBtn>
+          <SpotifyBtn fullWidth onClick={generate}><span style={{display:"inline-flex",alignItems:"center",gap:7}}>Generate with AI <Sparkles size={14}/></span></SpotifyBtn>
         )}
         {generating&&(
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"14px",background:S.elevated,border:`1px solid ${S.border}`,borderRadius:500}}>
@@ -154,10 +155,10 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
         {!generating&&(
           <>
             <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("master")}>
-              {copied==="master"?"Copied ✓":"Copy Master Prompt"}
+              {copied==="master"?<span style={{display:"inline-flex",alignItems:"center",gap:5}}><Check size={13}/>Copied</span>:"Copy Master Prompt"}
             </SpotifyBtn>
             <SpotifyBtn fullWidth variant="secondary" onClick={()=>copy("simple")}>
-              {copied==="simple"?"Copied ✓":"Copy Simple Prompt"}
+              {copied==="simple"?<span style={{display:"inline-flex",alignItems:"center",gap:5}}><Check size={13}/>Copied</span>:"Copy Simple Prompt"}
             </SpotifyBtn>
           </>
         )}
@@ -173,7 +174,7 @@ Rules: one idea per card, each card builds on the last, difficulty 1=Intro 2=Cor
       {/* ── Generation result preview ── */}
       {genResult&&(
         <div style={{marginTop:16,background:S.card,borderRadius:6,padding:"16px 18px"}}>
-          <div style={{fontSize:11,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10,fontFamily:F}}>Generated ✓</div>
+          <div style={{fontSize:11,fontWeight:700,color:S.green,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10,fontFamily:F,display:"flex",alignItems:"center",gap:5}}><Check size={12}/>Generated</div>
           <div style={{fontSize:15,fontWeight:700,color:S.white,fontFamily:F,marginBottom:4}}>{genResult.title||topic}</div>
           <div style={{fontSize:12,color:S.subdued,fontFamily:F,marginBottom:12}}>{genResult.cards.length} cards</div>
           {genResult.cards.slice(0,4).map(c=>(

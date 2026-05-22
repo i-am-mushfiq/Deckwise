@@ -76,7 +76,7 @@ const setupWithUser = (userId = 'user-123', library = null, extraStorage = {}) =
 };
 
 const openAuthModal = async (user) => {
-  await user.click(await screen.findByText('☰'));
+  await user.click(await screen.findByRole('button', { name: 'Open menu' }));
   await user.click(await screen.findByRole('button', { name: /^sign in$/i }));
   await screen.findByText(/sign in with google/i);
 };
@@ -191,7 +191,7 @@ describe('Sign out', () => {
     });
 
     // Open sidebar — user is now logged in, so Sign Out appears
-    await user.click(screen.getByText('☰'));
+    await user.click(screen.getByRole('button', { name: 'Open menu' }));
     const signOutBtn = await screen.findByRole('button', { name: /sign out/i });
     await user.click(signOutBtn);
 

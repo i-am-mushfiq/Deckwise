@@ -14,8 +14,8 @@
  *    Use `within(screen.getByTestId('active-card'))` to target the visible
  *    top card without relying on DOM position.
  *  - The Sidebar is ALWAYS rendered (off-screen when closed); its active-theme
- *    ✓ <span> is always in the DOM.  Tests that need the ActionBar ✓ use
- *    getByRole('button', { name: '✓' }) to target the button specifically.
+ *    check mark is always in the DOM.  Tests that need the ActionBar use
+ *    getByRole('button', { name: 'Got it' }) to target the button specifically.
  *  - "Tiny Topic" appears in the learn-screen header AND each card's
  *    topicTitle field.  Tests use findAllByText() where needed.
  */
@@ -90,7 +90,7 @@ describe('Home screen', () => {
 
   it('shows the hamburger menu button', async () => {
     setup();
-    expect(await screen.findByText('☰')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Open menu' })).toBeInTheDocument();
   });
 
   it('shows the "Edit library" button', async () => {
@@ -115,19 +115,19 @@ describe('Home screen', () => {
 describe('Sidebar', () => {
   it('opens when the hamburger button is clicked', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     expect(await screen.findByText('Deckwise')).toBeInTheDocument();
   });
 
   it('shows "Sign in to sync" when no user is logged in', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     expect(await screen.findByText(/sign in to sync/i)).toBeInTheDocument();
   });
 
   it('shows all five color profile options', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     for (const name of ['Rustic Autumn', 'Midnight', 'Forest', 'Slate', 'Obsidian']) {
       expect(screen.getByText(name)).toBeInTheDocument();
     }
@@ -135,38 +135,38 @@ describe('Sidebar', () => {
 
   it('shows all three community deck titles', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     expect(screen.getByText('Stoic Philosophy')).toBeInTheDocument();
     expect(screen.getByText('Financial Literacy 101')).toBeInTheDocument();
     expect(screen.getByText('The Art of Public Speaking')).toBeInTheDocument();
   });
 
-  it('closes when the panel ✕ button is clicked', async () => {
+  it('closes when the panel close button is clicked', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
-    await user.click(screen.getAllByText('✕')[0]);
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
+    await user.click(screen.getByRole('button', { name: 'Close sidebar' }));
     // Home screen is still intact after close
     await screen.findByText('Overall progress');
   });
 
   it('opens AuthModal when the Sign in button is clicked in the sidebar', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     await user.click(await screen.findByRole('button', { name: /^sign in$/i }));
     expect(await screen.findByText(/sign in with google/i)).toBeInTheDocument();
   });
 
   it('can add a community deck to the library and the button confirms', async () => {
     const user = setup(TINY_LIBRARY);
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     const addBtns = await screen.findAllByRole('button', { name: /add to library/i });
     await user.click(addBtns[0]);
-    expect(await screen.findByText('Added ✓')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /added/i })).toBeInTheDocument();
   });
 
   it('persists the chosen theme to localStorage when a color profile is clicked', async () => {
     const user = setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     await user.click(screen.getByText('Midnight'));
     await waitFor(() => {
       expect(localStorage.getItem('sl-theme')).toBe('"midnight"');
@@ -179,7 +179,7 @@ describe('Sidebar', () => {
 describe('AuthModal', () => {
   const openAuthModal = async (user) => {
     setup();
-    await user.click(await screen.findByText('☰'));
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
     await user.click(await screen.findByRole('button', { name: /^sign in$/i }));
     await screen.findByText(/sign in with google/i);
   };
@@ -202,11 +202,10 @@ describe('AuthModal', () => {
     expect(screen.getByRole('button', { name: /send magic link/i })).toBeInTheDocument();
   });
 
-  it('closes when the ✕ button inside the modal is clicked', async () => {
+  it('closes when the close button inside the modal is clicked', async () => {
     const user = userEvent.setup();
     await openAuthModal(user);
-    const closeBtns = screen.getAllByText('✕');
-    await user.click(closeBtns[closeBtns.length - 1]);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => {
       expect(screen.queryByText(/send magic link/i)).not.toBeInTheDocument();
     });
@@ -228,11 +227,11 @@ describe('Library editor', () => {
     expect(await screen.findByRole('button', { name: /save library/i })).toBeInTheDocument();
   });
 
-  it('closes when the modal ✕ button is clicked', async () => {
+  it('closes when the modal close button is clicked', async () => {
     const user = setup();
     await user.click(await screen.findByRole('button', { name: /edit library/i }));
     await screen.findByText('Your Library');
-    await user.click(screen.getAllByText('✕')[0]);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => {
       expect(screen.queryByText('Your Library')).not.toBeInTheDocument();
     });
@@ -245,7 +244,7 @@ describe('AI Prompt panel', () => {
   it('expands when "AI Prompt" is clicked', async () => {
     const user = setup();
     await user.click(await screen.findByRole('button', { name: /ai prompt/i }));
-    expect(await screen.findByText('Generate with AI')).toBeInTheDocument();
+    expect(await screen.findByTestId('prompt-panel')).toBeInTheDocument();
   });
 
   it('shows Topic and Audience input fields', async () => {
@@ -255,11 +254,11 @@ describe('AI Prompt panel', () => {
     expect(screen.getByPlaceholderText(/software engineers/i)).toBeInTheDocument();
   });
 
-  it('collapses when "✕ Close" is clicked and input fields disappear', async () => {
+  it('collapses when "Close" is clicked and input fields disappear', async () => {
     const user = setup();
     await user.click(await screen.findByRole('button', { name: /ai prompt/i }));
     await screen.findByPlaceholderText(/how transformers work/i);
-    await user.click(screen.getByRole('button', { name: /✕ close/i }));
+    await user.click(screen.getByRole('button', { name: /^close$/i }));
     await waitFor(() => {
       expect(screen.queryByPlaceholderText(/how transformers work/i)).not.toBeInTheDocument();
     });
@@ -282,89 +281,88 @@ describe('Learn screen', () => {
     await screen.findByText('0 / 2');
   });
 
-  it('shows the ✓ done button in the ActionBar', async () => {
+  it('shows the "Got it" button in the ActionBar', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    // getByRole('button') distinguishes the ActionBar ✓ from the sidebar ✓ <span>
-    expect(screen.getByRole('button', { name: '✓' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeInTheDocument();
   });
 
-  it('shows the ↺ and ↩ buttons in the ActionBar', async () => {
+  it('shows the Review and Undo buttons in the ActionBar', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    expect(screen.getByText('↺')).toBeInTheDocument();
-    expect(screen.getByText('↩')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 
-  it('back button (↩) is visually dimmed at the start of a session', async () => {
+  it('back button (Undo) is visually dimmed at the start of a session', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    expect(screen.getByText('↩').closest('button').style.opacity).toBe('0.3');
+    expect(screen.getByRole('button', { name: 'Undo' }).style.opacity).toBe('0.3');
   });
 
-  it('shows the second card after advancing with ✓', async () => {
+  it('shows the second card after advancing with Got it', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     expect(await within(await screen.findByTestId('active-card')).findByText('Second Card')).toBeInTheDocument();
   });
 
   it('updates the progress counter to "1 / 2" after one advance', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('1 / 2');
   });
 
   it('enables the back button after advancing one card', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await waitFor(() => {
-      expect(screen.getByText('↩').closest('button').style.opacity).toBe('1');
+      expect(screen.getByRole('button', { name: 'Undo' }).style.opacity).toBe('1');
     });
   });
 
-  it('shows the first card again after going back with ↩', async () => {
+  it('shows the first card again after going back with Undo', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('Second Card');
-    await user.click(screen.getByText('↩'));
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await within(await screen.findByTestId('active-card')).findByText('First Card')).toBeInTheDocument();
   });
 
   it('reverts the progress counter when going back', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('1 / 2');
-    await user.click(screen.getByText('↩'));
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
     await screen.findByText('0 / 2');
   });
 
-  it('shows revisit count in the progress bar when ↺ is clicked', async () => {
+  it('shows revisit count in the progress bar when Review is clicked', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByText('↺'));
-    await screen.findByText('↺ 1');
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    expect(await screen.findByTestId('revisit-count')).toBeInTheDocument();
   });
 
-  it('shows the context (Deep dive) for the active card when "↑ Expand" is clicked', async () => {
+  it('shows the context (Deep dive) for the active card when "Expand" is clicked', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
     // Only target the active card's Expand button — no DOM-position guessing
-    await user.click(within(screen.getByTestId('active-card')).getByText('↑ Expand'));
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Expand' }));
     expect(await screen.findByText('Deep dive')).toBeInTheDocument();
     // Context is the correct card's context, not the background card's
     expect(screen.getByText('Deep dive of first card.')).toBeInTheDocument();
   });
 
-  it('hides the context section when "↓ Collapse" is clicked', async () => {
+  it('hides the context section when "Collapse" is clicked', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(within(screen.getByTestId('active-card')).getByText('↑ Expand'));
-    await user.click(await screen.findByText('↓ Collapse'));
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Expand' }));
+    await user.click(await screen.findByRole('button', { name: 'Collapse' }));
     await waitFor(() => {
       expect(screen.queryByText('Deep dive')).not.toBeInTheDocument();
     });
@@ -385,33 +383,33 @@ describe('Learn screen', () => {
     expect(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Flag' })).toBeInTheDocument();
   });
 
-  it('toggles the star button on the active card: ☆ → ★', async () => {
+  it('toggles the star button on the active card: Star → Starred', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: '☆' }));
-    expect(within(screen.getByTestId('active-card')).getByRole('button', { name: '★' })).toBeInTheDocument();
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Star' }));
+    expect(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Starred' })).toBeInTheDocument();
   });
 
-  it('toggles the star button on the active card: ★ → ☆', async () => {
+  it('toggles the star button on the active card: Starred → Star', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: '☆' }));
-    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: '★' }));
-    expect(within(screen.getByTestId('active-card')).getByRole('button', { name: '☆' })).toBeInTheDocument();
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Star' }));
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Starred' }));
+    expect(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Star' })).toBeInTheDocument();
   });
 
-  it('returns to the home screen when ‹ is clicked', async () => {
+  it('returns to the home screen when Back to library is clicked', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByText('‹'));
+    await user.click(screen.getByRole('button', { name: 'Back to library' }));
     await screen.findByText('Overall progress');
   });
 
   it('shows the completion screen after advancing through all cards', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('Done!');
   });
 });
@@ -422,8 +420,8 @@ describe('Completion screen', () => {
   /** Navigate through a full deck, completing every card. */
   const completeAllCards = async (user, extra = {}) => {
     await navigateToLearn(user, extra);
-    await user.click(screen.getByRole('button', { name: '✓' }));
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('Done!');
   };
 
@@ -454,11 +452,11 @@ describe('Completion screen', () => {
     expect(pcts.length).toBeGreaterThan(0);
   });
 
-  it('shows the revisit queue section when cards were swiped right (↺)', async () => {
+  it('shows the revisit queue section when cards were swiped right (Review)', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByText('↺'));
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('Done!');
     expect(screen.getByText(/review queue/i)).toBeInTheDocument();
   });
@@ -468,8 +466,8 @@ describe('Completion screen', () => {
     await navigateToLearn(user);
     // Flag the active card (t1 = First Card)
     await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Flag' }));
-    await user.click(screen.getByRole('button', { name: '✓' }));
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('Done!');
     expect(screen.getByText(/flagged · \d+/i)).toBeInTheDocument();
     // The flagged card's title should appear in the flagged section
@@ -479,9 +477,9 @@ describe('Completion screen', () => {
   it('shows starred section with card title when a card was starred before completing', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: '☆' }));
-    await user.click(screen.getByRole('button', { name: '✓' }));
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Star' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     await screen.findByText('Done!');
     expect(screen.getByText(/starred · \d+/i)).toBeInTheDocument();
     expect(screen.getByText('First Card')).toBeInTheDocument();
@@ -491,26 +489,26 @@ describe('Completion screen', () => {
 // ── Progress persistence (localStorage) ───────────────────────────────────────
 
 describe('Progress persistence (localStorage)', () => {
-  it('writes t1 completion to localStorage after advancing with ✓', async () => {
+  it('writes t1 completion to localStorage after advancing with Got it', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
     expect(JSON.parse(localStorage.getItem('sl-comp') || '{}')).toMatchObject({ t1: true });
   });
 
-  it('removes t1 from completionMap in localStorage after going back with ↩', async () => {
+  it('removes t1 from completionMap in localStorage after going back with Undo', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByRole('button', { name: '✓' }));
-    await user.click(screen.getByText('↩'));
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
     const stored = JSON.parse(localStorage.getItem('sl-comp') || '{}');
     expect(stored.t1).toBeUndefined();
   });
 
-  it('adds t1 to revisit array in localStorage when ↺ is clicked', async () => {
+  it('adds t1 to revisit array in localStorage when Review is clicked', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(screen.getByText('↺'));
+    await user.click(screen.getByRole('button', { name: 'Review' }));
     expect(JSON.parse(localStorage.getItem('sl-rev') || '[]')).toContain('t1');
   });
 
@@ -524,7 +522,7 @@ describe('Progress persistence (localStorage)', () => {
   it('adds t1 to starred array in localStorage when the active card is starred', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
-    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: '☆' }));
+    await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Star' }));
     expect(JSON.parse(localStorage.getItem('sl-star') || '[]')).toContain('t1');
   });
 
@@ -569,17 +567,17 @@ describe('Reset', () => {
 describe('DirectoryNode chip buttons', () => {
   it('shows the "flagged" chip when flags exist in localStorage', async () => {
     setup(TINY_LIBRARY, { 'sl-conf': ['t1'] });
-    expect(await screen.findByText(/🚩 1 flagged/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /1 flagged/i })).toBeInTheDocument();
   });
 
   it('shows the "starred" chip when stars exist in localStorage', async () => {
     setup(TINY_LIBRARY, { 'sl-star': ['t1'] });
-    expect(await screen.findByText(/★ 1 starred/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /1 starred/i })).toBeInTheDocument();
   });
 
   it('clicking the flagged chip starts a 1-card flagged-only session', async () => {
     const user = setup(TINY_LIBRARY, { 'sl-conf': ['t1'] });
-    await user.click(await screen.findByText(/🚩 1 flagged/));
+    await user.click(await screen.findByRole('button', { name: /1 flagged/i }));
     // Only the flagged card (t1 = First Card) is in the queue
     expect(await within(await screen.findByTestId('active-card')).findByText('First Card')).toBeInTheDocument();
     expect(screen.getByText('0 / 1')).toBeInTheDocument();
@@ -587,7 +585,7 @@ describe('DirectoryNode chip buttons', () => {
 
   it('clicking the starred chip starts a 1-card starred-only session', async () => {
     const user = setup(TINY_LIBRARY, { 'sl-star': ['t2'] });
-    await user.click(await screen.findByText(/★ 1 starred/));
+    await user.click(await screen.findByRole('button', { name: /1 starred/i }));
     // Only the starred card (t2 = Second Card) is in the queue
     expect(await within(await screen.findByTestId('active-card')).findByText('Second Card')).toBeInTheDocument();
     expect(screen.getByText('0 / 1')).toBeInTheDocument();
@@ -604,17 +602,17 @@ describe('End-to-end pipeline: flag → chip → filtered session', () => {
     await navigateToLearn(user);
     await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Flag' }));
     // Return to home screen
-    await user.click(screen.getByText('‹'));
+    await user.click(screen.getByRole('button', { name: 'Back to library' }));
     // Chip should now be visible on the home screen
-    expect(await screen.findByText(/🚩 1 flagged/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /1 flagged/i })).toBeInTheDocument();
   });
 
   it('flagged chip opens a filtered session containing only the flagged card', async () => {
     const user = userEvent.setup();
     await navigateToLearn(user);
     await user.click(within(screen.getByTestId('active-card')).getByRole('button', { name: 'Flag' }));
-    await user.click(screen.getByText('‹'));
-    await user.click(await screen.findByText(/🚩 1 flagged/));
+    await user.click(screen.getByRole('button', { name: 'Back to library' }));
+    await user.click(await screen.findByRole('button', { name: /1 flagged/i }));
     // Session has exactly 1 card and it's the flagged one (First Card = t1)
     expect(await within(await screen.findByTestId('active-card')).findByText('First Card')).toBeInTheDocument();
     expect(screen.getByText('0 / 1')).toBeInTheDocument();

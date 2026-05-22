@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, ChevronUp, ChevronDown } from 'lucide-react';
 import { S, F } from '../../theme.js';
 import { hap } from '../../audio.js';
 import { uid } from '../../lib.js';
@@ -26,8 +27,16 @@ export function CardSetManager({topic,onSave,onClose}){
               onMouseEnter={e=>e.currentTarget.style.background=S.cardHover}
               onMouseLeave={e=>e.currentTarget.style.background=S.card}>
               <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                <button onClick={()=>move(i,-1)} disabled={i===0} style={{background:"none",border:"none",color:i===0?S.faint:S.subdued,cursor:i===0?"default":"pointer",fontSize:12,padding:"1px 4px",lineHeight:1}}>▲</button>
-                <button onClick={()=>move(i,1)} disabled={i===cards.length-1} style={{background:"none",border:"none",color:i===cards.length-1?S.faint:S.subdued,cursor:i===cards.length-1?"default":"pointer",fontSize:12,padding:"1px 4px",lineHeight:1}}>▼</button>
+                <button onClick={()=>move(i,-1)} disabled={i===0} style={{background:"none",border:"none",color:i===0?S.faint:S.subdued,cursor:i===0?"default":"pointer",padding:"1px 4px",lineHeight:1,display:"flex",alignItems:"center"}}
+                  onMouseEnter={e=>{if(i!==0)e.currentTarget.style.color=S.white;}}
+                  onMouseLeave={e=>e.currentTarget.style.color=i===0?S.faint:S.subdued}>
+                  <ChevronUp size={14}/>
+                </button>
+                <button onClick={()=>move(i,1)} disabled={i===cards.length-1} style={{background:"none",border:"none",color:i===cards.length-1?S.faint:S.subdued,cursor:i===cards.length-1?"default":"pointer",padding:"1px 4px",lineHeight:1,display:"flex",alignItems:"center"}}
+                  onMouseEnter={e=>{if(i!==cards.length-1)e.currentTarget.style.color=S.white;}}
+                  onMouseLeave={e=>e.currentTarget.style.color=i===cards.length-1?S.faint:S.subdued}>
+                  <ChevronDown size={14}/>
+                </button>
               </div>
               <div style={{width:28,height:28,borderRadius:4,background:c.difficulty===1?`${S.d1}22`:c.difficulty===2?`${S.d2}22`:`${S.d3}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:c.difficulty===1?S.d1:c.difficulty===2?S.d2:S.d3,flexShrink:0}}>{c.order}</div>
               <div style={{flex:1,minWidth:0}}>
@@ -36,9 +45,11 @@ export function CardSetManager({topic,onSave,onClose}){
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
                 <SpotifyBtn size="sm" variant="ghost" onClick={()=>setEditing(c)}>Edit</SpotifyBtn>
-                <button onClick={()=>del(c.id)} style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",fontSize:18,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
+                <button onClick={()=>del(c.id)} style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
                   onMouseEnter={e=>e.currentTarget.style.color=S.danger}
-                  onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>✕</button>
+                  onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
+                  <X size={16}/>
+                </button>
               </div>
             </div>
           ))}

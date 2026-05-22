@@ -9,6 +9,7 @@ import { useSync } from "./hooks/useSync.js";
 import { useAiUsage } from "./hooks/useAiUsage.js";
 
 // Components
+import { Menu, X, ChevronLeft, RotateCcw } from "lucide-react";
 import { SpotifyBtn } from "./components/ui/SpotifyBtn.jsx";
 import { DraggableCard } from "./components/DraggableCard.jsx";
 import { ActionBar } from "./components/ActionBar.jsx";
@@ -249,14 +250,14 @@ export default function App(){
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <button onClick={()=>{hap.light();setSidebarOpen(true);}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:20,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",transition:"color 0.15s"}}
                 onMouseEnter={e=>e.currentTarget.style.color=S.white}
-                onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>☰</button>
+                onMouseLeave={e=>e.currentTarget.style.color=S.subdued} aria-label="Open menu"><Menu size={20}/></button>
               <img src="/icon-192.png" alt="Deckwise" style={{width:36,height:36,borderRadius:8}}/>
             </div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button onClick={()=>{hap.light();setShowPromptPanel(p=>!p);}} style={{background:showPromptPanel?`${S.green}18`:"transparent",border:`1px solid ${showPromptPanel?S.green:S.border}`,color:showPromptPanel?S.green:S.subdued,borderRadius:500,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all 0.15s",whiteSpace:"nowrap"}}
                 onMouseEnter={e=>{if(!showPromptPanel){e.currentTarget.style.borderColor=S.subdued;e.currentTarget.style.color=S.white;}}}
                 onMouseLeave={e=>{if(!showPromptPanel){e.currentTarget.style.borderColor=S.border;e.currentTarget.style.color=S.subdued;}}}>
-                {showPromptPanel?"✕ Close":"AI Prompt"}
+                {showPromptPanel?<span style={{display:"inline-flex",alignItems:"center",gap:5}}><X size={13}/>Close</span>:"AI Prompt"}
               </button>
               <SpotifyBtn size="sm" onClick={()=>setShowEditor(true)}>Edit library</SpotifyBtn>
               <button onClick={handleReset} style={{background:"transparent",border:"none",color:S.faint,fontSize:13,cursor:"pointer",fontFamily:F,padding:"4px 8px"}}
@@ -283,7 +284,7 @@ export default function App(){
             </div>
             {(revisitIds.length>0||confusedIds.length>0)&&(
               <div style={{display:"flex",gap:16,marginTop:14}}>
-                {revisitIds.length>0&&<span style={{fontSize:13,color:S.danger,fontWeight:700}}>↺ {revisitIds.length} to review</span>}
+                {revisitIds.length>0&&<span style={{fontSize:13,color:S.danger,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><RotateCcw size={12}/>{revisitIds.length} to review</span>}
                 {confusedIds.length>0&&<span style={{fontSize:13,color:S.green,fontWeight:700}}>{confusedIds.length} flagged</span>}
               </div>
             )}
@@ -311,7 +312,7 @@ export default function App(){
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
             <button onClick={()=>{hap.light();setScreen("home");}} style={{background:"transparent",border:"none",color:S.subdued,fontSize:22,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
               onMouseEnter={e=>e.currentTarget.style.color=S.white}
-              onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>‹</button>
+              onMouseLeave={e=>e.currentTarget.style.color=S.subdued} aria-label="Back to library"><ChevronLeft size={24}/></button>
             <div style={{flex:1,fontSize:15,fontWeight:700,color:S.white,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeTopic?.title}</div>
           </div>
           <ProgressBar current={cardIndex} total={activeQueue.length} revisitCount={revisitIds.filter(id=>activeQueue.some(c=>c.id===id)).length} confusedCount={confusedIds.filter(id=>activeQueue.some(c=>c.id===id)).length}/>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Check, RotateCcw, ChevronUp, ChevronDown, Star } from 'lucide-react';
 import { S, F } from '../theme.js';
 import { hap, snd } from '../audio.js';
 
@@ -64,8 +65,16 @@ export function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused
     <div ref={ref} data-testid={isTop?"active-card":"background-card"} style={{position:"absolute",width:"100%",maxWidth:440,left:"50%",top:0,transform:`translateX(-50%) ${tx}`,transition:tr,cursor:isTop?"grab":"default",userSelect:"none",zIndex:10-stackIndex,touchAction:"none",filter:stackIndex>0?`brightness(${1-stackIndex*0.15})`:"none"}}>
       <div style={{background:S.card,borderRadius:8,overflow:"hidden",position:"relative",boxShadow:isTop?"0 8px 40px rgba(0,0,0,0.6)":"0 2px 12px rgba(0,0,0,0.4)"}}>
         <div style={{height:3,background:dc,width:"100%"}}/>
-        {isTop&&lOp>0.08&&<div style={{position:"absolute",top:20,left:16,opacity:lOp,transform:"rotate(-8deg)",zIndex:10,border:`2px solid ${S.green}`,borderRadius:4,padding:"4px 14px",color:S.green,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Got it ✓</div>}
-        {isTop&&rOp>0.08&&<div style={{position:"absolute",top:20,right:16,opacity:rOp,transform:"rotate(8deg)",zIndex:10,border:`2px solid ${S.danger}`,borderRadius:4,padding:"4px 14px",color:S.danger,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none"}}>Again ↺</div>}
+        {isTop&&lOp>0.08&&(
+          <div style={{position:"absolute",top:20,left:16,opacity:lOp,transform:"rotate(-8deg)",zIndex:10,border:`2px solid ${S.green}`,borderRadius:4,padding:"4px 14px",color:S.green,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none",display:"flex",alignItems:"center",gap:6}}>
+            Got it <Check size={18}/>
+          </div>
+        )}
+        {isTop&&rOp>0.08&&(
+          <div style={{position:"absolute",top:20,right:16,opacity:rOp,transform:"rotate(8deg)",zIndex:10,border:`2px solid ${S.danger}`,borderRadius:4,padding:"4px 14px",color:S.danger,fontWeight:700,fontSize:18,fontFamily:F,pointerEvents:"none",display:"flex",alignItems:"center",gap:6}}>
+            Again <RotateCcw size={16}/>
+          </div>
+        )}
         <div style={{padding:"20px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div style={{flex:1,paddingRight:12}}>
             <div style={{fontSize:11,fontWeight:700,color:S.subdued,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontFamily:F}}>{card.topicTitle}</div>
@@ -86,12 +95,12 @@ export function DraggableCard({card,onSwipe,stackIndex,isTop,confused,onConfused
         )}
         <div style={{padding:"14px 20px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           {!showCtx
-            ?<button onClick={()=>{hap.light();snd.reveal();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}} onMouseEnter={e=>e.currentTarget.style.borderColor=S.white} onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↑ Expand</button>
-            :<button onClick={()=>{hap.light();setShowCtx(false);}} style={{fontSize:12,fontWeight:700,color:S.subdued,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em"}} onMouseEnter={e=>e.currentTarget.style.borderColor=S.subdued} onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}>↓ Collapse</button>
+            ?<button aria-label="Expand" onClick={()=>{hap.light();snd.reveal();setShowCtx(true);}} style={{fontSize:12,fontWeight:700,color:S.white,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em",display:"flex",alignItems:"center",gap:5}} onMouseEnter={e=>e.currentTarget.style.borderColor=S.white} onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}><ChevronUp size={14}/>Expand</button>
+            :<button aria-label="Collapse" onClick={()=>{hap.light();setShowCtx(false);}} style={{fontSize:12,fontWeight:700,color:S.subdued,background:"transparent",border:`1px solid ${S.border}`,borderRadius:500,padding:"6px 16px",cursor:"pointer",fontFamily:F,letterSpacing:"0.04em",display:"flex",alignItems:"center",gap:5}} onMouseEnter={e=>e.currentTarget.style.borderColor=S.subdued} onMouseLeave={e=>e.currentTarget.style.borderColor=S.border}><ChevronDown size={14}/>Collapse</button>
           }
           <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-            <button onClick={()=>{hap.light();onStarred();}} style={{fontSize:14,fontWeight:700,color:starred?S.star:S.subdued,background:starred?`${S.star}18`:"transparent",border:`1px solid ${starred?S.star:S.border}`,borderRadius:500,padding:"6px 14px",cursor:"pointer",fontFamily:F,transition:"all 0.15s",lineHeight:1}}>
-              {starred?"★":"☆"}
+            <button aria-label={starred?"Starred":"Star"} onClick={()=>{hap.light();onStarred();}} style={{color:starred?S.star:S.subdued,background:starred?`${S.star}18`:"transparent",border:`1px solid ${starred?S.star:S.border}`,borderRadius:500,padding:"6px 14px",cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Star size={15} color={starred?S.star:S.subdued} fill={starred?S.star:"none"}/>
             </button>
             <button onClick={()=>{hap.medium();onConfused();}} style={{fontSize:12,fontWeight:700,color:confused?S.green:S.subdued,background:confused?`${S.green}18`:"transparent",border:`1px solid ${confused?S.green:S.border}`,borderRadius:500,padding:"6px 14px",cursor:"pointer",fontFamily:F,transition:"all 0.15s"}}>
               {confused?"Flagged":"Flag"}

@@ -1,3 +1,4 @@
+import { RotateCcw } from 'lucide-react';
 import { S, F } from '../theme.js';
 
 export function ProgressBar({current,total,revisitCount,confusedCount}){
@@ -6,8 +7,8 @@ export function ProgressBar({current,total,revisitCount,confusedCount}){
     <div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:12,fontFamily:F}}>
         <span style={{color:S.subdued,fontWeight:700}}>{current} / {total}</span>
-        <span style={{display:"flex",gap:12}}>
-          {revisitCount>0&&<span style={{color:S.danger,fontWeight:700}}>↺ {revisitCount}</span>}
+        <span style={{display:"flex",gap:12,alignItems:"center"}}>
+          {revisitCount>0&&<span data-testid="revisit-count" style={{color:S.danger,fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}><RotateCcw size={11}/>{revisitCount}</span>}
           {confusedCount>0&&<span style={{color:S.green,fontWeight:700}}>{confusedCount} flagged</span>}
           <span style={{color:S.white,fontWeight:700}}>{pct}%</span>
         </span>

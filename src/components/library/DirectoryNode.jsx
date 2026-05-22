@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { BookOpen, CircleCheck, ChevronRight, Flag, Star } from 'lucide-react';
 import { S, F } from '../../theme.js';
 import { hap } from '../../audio.js';
 
@@ -10,10 +11,10 @@ export function DirectoryNode({node,depth,onSelect,completionMap,progressMap,con
     const inProg=(progressMap[node.id]||0)>0&&pct<100;
     const flaggedCount=node.cards.filter(c=>confusedIds.includes(c.id)).length;
     const starredCount=node.cards.filter(c=>starredIds.includes(c.id)).length;
-    const chipBtn=(label,color,onClick)=>(
+    const chipBtn=(children,color,onClick)=>(
       <button onClick={e=>{e.stopPropagation();hap.light();onClick();}}
-        style={{fontSize:11,fontWeight:700,color,background:`${color}18`,border:`1px solid ${color}44`,borderRadius:500,padding:"2px 8px",cursor:"pointer",fontFamily:F,transition:"all 0.15s",lineHeight:1.6}}>
-        {label}
+        style={{fontSize:11,fontWeight:700,color,background:`${color}18`,border:`1px solid ${color}44`,borderRadius:500,padding:"2px 8px",cursor:"pointer",fontFamily:F,transition:"all 0.15s",lineHeight:1.6,display:"inline-flex",alignItems:"center",gap:4}}>
+        {children}
       </button>
     );
     return(
@@ -22,7 +23,10 @@ export function DirectoryNode({node,depth,onSelect,completionMap,progressMap,con
         onMouseEnter={e=>{if(node.cards.length)e.currentTarget.style.background=S.card;}}
         onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
         <div style={{width:44,height:44,borderRadius:4,background:pct===100?`${S.green}22`:inProg?`${S.d2}22`:S.card,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,position:"relative"}}>
-          <span style={{fontSize:20}}>{pct===100?"✅":"📖"}</span>
+          {pct===100
+            ?<CircleCheck size={22} color={S.green}/>
+            :<BookOpen size={20} color={inProg?S.white:S.subdued}/>
+          }
           {inProg&&<div style={{position:"absolute",bottom:2,right:2,width:8,height:8,borderRadius:"50%",background:S.green,border:`2px solid ${S.surface}`}}/>}
         </div>
         <div style={{flex:1,minWidth:0}}>
@@ -30,8 +34,8 @@ export function DirectoryNode({node,depth,onSelect,completionMap,progressMap,con
           <div style={{fontSize:12,color:S.subdued,fontFamily:F}}>{node.cards.length} cards{!node.cards.length?" · add cards in library":""}</div>
           {(flaggedCount>0||starredCount>0)&&(
             <div style={{display:"flex",gap:6,marginTop:5}} onClick={e=>e.stopPropagation()}>
-              {flaggedCount>0&&chipBtn(`🚩 ${flaggedCount} flagged`,S.green,()=>onSelectFlagged?.(node))}
-              {starredCount>0&&chipBtn(`★ ${starredCount} starred`,S.star,()=>onSelectStarred?.(node))}
+              {flaggedCount>0&&chipBtn(<><Flag size={11}/>{flaggedCount} flagged</>,S.green,()=>onSelectFlagged?.(node))}
+              {starredCount>0&&chipBtn(<><Star size={11}/>{starredCount} starred</>,S.star,()=>onSelectStarred?.(node))}
             </div>
           )}
         </div>
@@ -48,7 +52,7 @@ export function DirectoryNode({node,depth,onSelect,completionMap,progressMap,con
         onClick={()=>setOpen(!open)}
         onMouseEnter={e=>e.currentTarget.style.background=S.card}
         onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-        <span style={{fontSize:11,color:S.subdued,transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(90deg)":"rotate(0)",width:14}}>▶</span>
+        <ChevronRight size={14} color={S.subdued} style={{transition:"transform 0.2s",transform:open?"rotate(90deg)":"rotate(0deg)",flexShrink:0}}/>
         <span style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,flex:1}}>{node.title}</span>
         <span style={{fontSize:12,color:S.faint,fontFamily:F}}>{(node.children||[]).length} items</span>
       </div>
