@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
+import { uid, flattenTopics, rebuildPaths, findAndUpdate, findAndDelete, insertInto, KEYS, lsLoad, lsSave } from "./lib.js";
 
 const DEMO_DATA = {
   id:"root",title:"My Library",type:"directory",
@@ -54,18 +55,7 @@ const _t=(()=>{try{const t=JSON.parse(localStorage.getItem("sl-theme"))||"autumn
 const S={...(THEMES[_t]||THEMES.autumn)};
 const F = "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', Helvetica, Arial, sans-serif";
 
-const uid = () => Math.random().toString(36).slice(2,9);
-
-function flattenTopics(node,path=[]){const o=[];if(node.type==="topic")o.push({...node,path:node.path||path});else if(node.children)node.children.forEach(c=>o.push(...flattenTopics(c,[...path,node.title])));return o;}
-function rebuildPaths(node,path=[]){if(node.type==="topic")return{...node,path};return{...node,children:(node.children||[]).map(c=>rebuildPaths(c,[...path,node.title]))};}
-function findAndUpdate(node,id,upd){if(node.id===id)return upd(node);if(!node.children)return node;return{...node,children:node.children.map(c=>findAndUpdate(c,id,upd))};}
-function findAndDelete(node,id){if(!node.children)return node;return{...node,children:node.children.filter(c=>c.id!==id).map(c=>findAndDelete(c,id))};}
-function insertInto(node,pid,child){if(node.id===pid)return{...node,children:[...(node.children||[]),child]};if(!node.children)return node;return{...node,children:node.children.map(c=>insertInto(c,pid,child))};}
-
-// ── STORAGE — localStorage for real browser ───────────────────────────────────
-const KEYS={completion:"sl-comp",revisit:"sl-rev",confused:"sl-conf",starred:"sl-star",progress:"sl-prog",library:"sl-lib"};
-function lsLoad(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
-function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+// ── STORAGE — localStorage for real browser (see lib.js for helpers) ─────────
 
 // ── COMMUNITY DECKS — curated decks users can add to their library ────────────
 const COMMUNITY_DECKS=[
