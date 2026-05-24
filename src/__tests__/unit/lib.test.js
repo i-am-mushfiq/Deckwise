@@ -14,6 +14,7 @@ import {
   insertInto,
   validateTopicImport,
   normalizeTopicImport,
+  pruneOrphanedIds,
   KEYS,
   SCHEMA_VERSION,
   migrateLocalStorage,
@@ -459,9 +460,8 @@ describe('KEYS', () => {
 
 // ── SCHEMA_VERSION / migrateLocalStorage ─────────────────────────────────────
 describe('SCHEMA_VERSION', () => {
-  it('is a positive integer', () => {
-    expect(Number.isInteger(SCHEMA_VERSION)).toBe(true);
-    expect(SCHEMA_VERSION).toBeGreaterThan(0);
+  it('is 2', () => {
+    expect(SCHEMA_VERSION).toBe(2);
   });
 });
 
@@ -495,6 +495,147 @@ describe('migrateLocalStorage', () => {
     migrateLocalStorage();
     // version should not be downgraded
     expect(lsLoad(KEYS.version, 0)).toBe(SCHEMA_VERSION + 99);
+  });
+
+  // v1 → v2: de-duplicate card IDs
+  it('v2 migration: regenerates duplicate card IDs across topics', () => {
+    // Library with two topics that both contain card id 'shared-id'
+    const lib = {
+      id: 'root', type: 'directory', title: 'Root', children: [
+        { id: 'topic-a', type: 'topic', title: 'A', path: [], cards: [{ id: 'shared-id', title: 't', body: 'b' }] },
+        { id: 'topic-b', type: 'topic', title: 'B', path: [], cards: [{ id: 'shared-id', title: 't', body: 'b' }] },
+      ],
+    };
+    lsSave(KEYS.library, lib);
+    lsSave(KEYS.version, 1); // trigger v2 migration
+    migrateLocalStorage();
+    const migrated = lsLoad(KEYS.library, null);
+    const idA = migrated.children[0].cards[0].id;
+    const idB = migrated.children[1].cards[0].id;
+    // First occurrence keeps original; second gets a fresh ID
+    expect(idA).toBe('shared-id');
+    expect(idB).not.toBe('shared-id');
+    expect(idB).toMatch(/^card-/);
+  });
+
+  it('v2 migration: leaves library unchanged when all card IDs are unique', () => {
+    const lib = {
+      id: 'root', type: 'directory', title: 'Root', children: [
+        { id: 'topic-a', type: 'topic', title: 'A', path: [], cards: [{ id: 'card-1', title: 't', body: 'b' }] },
+        { id: 'topic-b', type: 'topic', title: 'B', path: [], cards: [{ id: 'card-2', title: 't', body: 'b' }] },
+      ],
+    };
+    lsSave(KEYS.library, lib);
+    lsSave(KEYS.version, 1);
+    migrateLocalStorage();
+    const migrated = lsLoad(KEYS.library, null);
+    expect(migrated.children[0].cards[0].id).toBe('card-1');
+    expect(migrated.children[1].cards[0].id).toBe('card-2');
+  });
+
+  it('v2 migration: skips library modification when no library is stored', () => {
+    // No library in localStorage — migration should not throw
+    lsSave(KEYS.version, 1);
+    expect(() => migrateLocalStorage()).not.toThrow();
+  });
+});
+
+// ── pruneOrphanedIds ──────────────────────────────────────────────────────────
+describe('pruneOrphanedIds', () => {
+  const lib = {
+    id: 'root', type: 'directory', title: 'Root', children: [
+      {
+        id: 'topic-1', type: 'topic', title: 'T1', path: [], cards: [
+          { id: 'c1', title: 't', body: 'b' },
+          { id: 'c2', title: 't', body: 'b' },
+        ],
+      },
+    ],
+  };
+
+  it('returns all state unchanged when no orphaned IDs exist', () => {
+    const state = {
+      completionMap: { c1: true },
+      starredIds: ['c2'],
+      confusedIds: ['c1'],
+      revisitIds: ['c2'],
+      progressMap: { 'topic-1': 1 },
+    };
+    const pruned = pruneOrphanedIds(lib, state);
+    expect(pruned.completionMap).toEqual({ c1: true });
+    expect(pruned.starredIds).toEqual(['c2']);
+    expect(pruned.confusedIds).toEqual(['c1']);
+    expect(pruned.revisitIds).toEqual(['c2']);
+    expect(pruned.progressMap).toEqual({ 'topic-1': 1 });
+  });
+
+  it('removes card IDs absent from the library from completionMap', () => {
+    const pruned = pruneOrphanedIds(lib, {
+      completionMap: { c1: true, 'stale-id': true },
+      starredIds: [], confusedIds: [], revisitIds: [], progressMap: {},
+    });
+    expect(pruned.completionMap).toEqual({ c1: true });
+    expect(Object.keys(pruned.completionMap)).not.toContain('stale-id');
+  });
+
+  it('removes orphaned IDs from starredIds', () => {
+    const pruned = pruneOrphanedIds(lib, {
+      completionMap: {}, starredIds: ['c1', 'ghost-card'],
+      confusedIds: [], revisitIds: [], progressMap: {},
+    });
+    expect(pruned.starredIds).toEqual(['c1']);
+  });
+
+  it('removes orphaned IDs from confusedIds', () => {
+    const pruned = pruneOrphanedIds(lib, {
+      completionMap: {}, starredIds: [], confusedIds: ['c2', 'ghost-card'],
+      revisitIds: [], progressMap: {},
+    });
+    expect(pruned.confusedIds).toEqual(['c2']);
+  });
+
+  it('removes orphaned IDs from revisitIds', () => {
+    const pruned = pruneOrphanedIds(lib, {
+      completionMap: {}, starredIds: [], confusedIds: [],
+      revisitIds: ['c1', 'dead-card'], progressMap: {},
+    });
+    expect(pruned.revisitIds).toEqual(['c1']);
+  });
+
+  it('removes orphaned topic IDs from progressMap', () => {
+    const pruned = pruneOrphanedIds(lib, {
+      completionMap: {}, starredIds: [], confusedIds: [], revisitIds: [],
+      progressMap: { 'topic-1': 3, 'dead-topic': 7 },
+    });
+    expect(pruned.progressMap).toEqual({ 'topic-1': 3 });
+  });
+
+  it('returns empty structures when all IDs are orphaned', () => {
+    const pruned = pruneOrphanedIds(lib, {
+      completionMap: { ghost: true },
+      starredIds: ['ghost'],
+      confusedIds: ['ghost'],
+      revisitIds: ['ghost'],
+      progressMap: { 'dead-topic': 5 },
+    });
+    expect(pruned.completionMap).toEqual({});
+    expect(pruned.starredIds).toEqual([]);
+    expect(pruned.confusedIds).toEqual([]);
+    expect(pruned.revisitIds).toEqual([]);
+    expect(pruned.progressMap).toEqual({});
+  });
+
+  it('does not mutate the original state objects', () => {
+    const state = {
+      completionMap: { ghost: true },
+      starredIds: ['ghost'],
+      confusedIds: [],
+      revisitIds: [],
+      progressMap: {},
+    };
+    pruneOrphanedIds(lib, state);
+    expect(state.completionMap).toEqual({ ghost: true });
+    expect(state.starredIds).toEqual(['ghost']);
   });
 });
 

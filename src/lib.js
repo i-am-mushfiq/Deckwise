@@ -67,7 +67,7 @@ export const KEYS = {
  * Increment this whenever the shape of any stored value changes.
  * Add the corresponding migration block inside migrateLocalStorage.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * Runs any outstanding localStorage migrations on app boot.
@@ -79,14 +79,69 @@ export function migrateLocalStorage() {
   if (stored >= SCHEMA_VERSION) return stored;
 
   // ── v0 → v1: baseline — no data transformation needed, just stamp the version
-  // Future migrations go here:
-  // if (stored < 2) {
-  //   const lib = lsLoad(KEYS.library, null);
-  //   if (lib) { /* reshape lib */ lsSave(KEYS.library, reshaped); }
-  // }
+
+  // ── v1 → v2: de-duplicate card IDs across topics
+  // Root cause: community decks added before commit 6e880d4 kept their hardcoded
+  // card IDs (cs-1, cf-1 …). A deck added twice shares all card IDs, so both
+  // copies show identical progress / starred / flagged counts.
+  // Fix: scan the library; for any card ID that appears in more than one topic,
+  // regenerate the duplicate occurrences with fresh UIDs. The first topic that
+  // "owns" the ID keeps its progress; the duplicate(s) start fresh at 0%.
+  if (stored < 2) {
+    const lib = lsLoad(KEYS.library, null);
+    if (lib) {
+      const globalSeen = new Set();
+      let changed = false;
+
+      function dedupeNode(node) {
+        if (node.type === 'topic') {
+          const newCards = (node.cards || []).map(card => {
+            if (globalSeen.has(card.id)) {
+              changed = true;
+              return { ...card, id: `card-${uid()}` };
+            }
+            globalSeen.add(card.id);
+            return card;
+          });
+          return { ...node, cards: newCards };
+        }
+        if (node.children) {
+          return { ...node, children: node.children.map(dedupeNode) };
+        }
+        return node;
+      }
+
+      const deduped = dedupeNode(lib);
+      if (changed) lsSave(KEYS.library, deduped);
+    }
+  }
 
   lsSave(KEYS.version, SCHEMA_VERSION);
   return stored;
+}
+
+/**
+ * Removes entries from completionMap, starredIds, confusedIds, revisitIds, and
+ * progressMap that reference card or topic IDs which no longer exist in the
+ * library. Call on every boot to prevent ghost progress from accumulating.
+ *
+ * Returns a new object containing pruned copies of all five state slices;
+ * the originals are not mutated.
+ */
+export function pruneOrphanedIds(library, { completionMap, starredIds, confusedIds, revisitIds, progressMap }) {
+  const validCardIds = new Set();
+  const validTopicIds = new Set();
+  flattenTopics(library).forEach(topic => {
+    validTopicIds.add(topic.id);
+    (topic.cards || []).forEach(c => validCardIds.add(c.id));
+  });
+  return {
+    completionMap: Object.fromEntries(Object.entries(completionMap).filter(([id]) => validCardIds.has(id))),
+    starredIds:    starredIds.filter(id => validCardIds.has(id)),
+    confusedIds:   confusedIds.filter(id => validCardIds.has(id)),
+    revisitIds:    revisitIds.filter(id => validCardIds.has(id)),
+    progressMap:   Object.fromEntries(Object.entries(progressMap).filter(([id]) => validTopicIds.has(id))),
+  };
 }
 
 // ── JSON EXPORT ───────────────────────────────────────────────────────────────

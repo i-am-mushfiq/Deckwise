@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
-import { uid, flattenTopics, rebuildPaths, insertInto, KEYS, lsLoad, lsSave, migrateLocalStorage } from "./lib.js";
+import { uid, flattenTopics, rebuildPaths, insertInto, KEYS, lsLoad, lsSave, migrateLocalStorage, pruneOrphanedIds } from "./lib.js";
 import { S, F, THEMES } from "./theme.js";
 import { hap } from "./audio.js";
 import { DEMO_DATA } from "./constants.js";
@@ -124,12 +124,29 @@ export default function App(){
   // ── Load from localStorage on boot ──────────────────────────────────────────
   useEffect(()=>{
     migrateLocalStorage(); // run any pending schema migrations before reading data
-    setCompletionMap(lsLoad(KEYS.completion,{}));
-    setRevisitIds(lsLoad(KEYS.revisit,[]));
-    setConfusedIds(lsLoad(KEYS.confused,[]));
-    setStarredIds(lsLoad(KEYS.starred,[]));
-    setProgressMap(lsLoad(KEYS.progress,{}));
-    setLibrary(lsLoad(KEYS.library,null)||DEMO_DATA);
+    const lib=lsLoad(KEYS.library,null)||DEMO_DATA;
+    // Prune any card/topic IDs that no longer exist in the library.
+    // This prevents ghost progress from deleted topics and eliminates stale
+    // entries left by the pre-6e880d4 hardcoded-ID era.
+    const pruned=pruneOrphanedIds(lib,{
+      completionMap:lsLoad(KEYS.completion,{}),
+      starredIds:lsLoad(KEYS.starred,[]),
+      confusedIds:lsLoad(KEYS.confused,[]),
+      revisitIds:lsLoad(KEYS.revisit,[]),
+      progressMap:lsLoad(KEYS.progress,{}),
+    });
+    // Persist pruned copies so orphaned IDs don't reappear on next boot.
+    lsSave(KEYS.completion,pruned.completionMap);
+    lsSave(KEYS.starred,pruned.starredIds);
+    lsSave(KEYS.confused,pruned.confusedIds);
+    lsSave(KEYS.revisit,pruned.revisitIds);
+    lsSave(KEYS.progress,pruned.progressMap);
+    setLibrary(lib);
+    setCompletionMap(pruned.completionMap);
+    setRevisitIds(pruned.revisitIds);
+    setConfusedIds(pruned.confusedIds);
+    setStarredIds(pruned.starredIds);
+    setProgressMap(pruned.progressMap);
     initAiUsage();
     setReady(true);
   },[]);
