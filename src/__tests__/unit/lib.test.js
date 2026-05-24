@@ -289,7 +289,7 @@ describe('insertInto', () => {
 
 // ── KEYS ──────────────────────────────────────────────────────────────────────
 describe('KEYS', () => {
-  it('contains all seven expected keys with their localStorage key names', () => {
+  it('contains all expected keys with their localStorage key names', () => {
     expect(KEYS.completion).toBe('sl-comp');
     expect(KEYS.revisit).toBe('sl-rev');
     expect(KEYS.confused).toBe('sl-conf');
@@ -297,10 +297,11 @@ describe('KEYS', () => {
     expect(KEYS.progress).toBe('sl-prog');
     expect(KEYS.library).toBe('sl-lib');
     expect(KEYS.aiUsage).toBe('sl-ai-usage');
+    expect(KEYS.highlights).toBe('sl-hl');
   });
 
-  it('has exactly seven keys', () => {
-    expect(Object.keys(KEYS)).toHaveLength(7);
+  it('has exactly eight keys', () => {
+    expect(Object.keys(KEYS)).toHaveLength(8);
   });
 });
 

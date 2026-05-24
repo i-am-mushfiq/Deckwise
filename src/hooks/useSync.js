@@ -3,8 +3,8 @@ import { supabase } from '../supabase.js';
 import { KEYS, lsLoad, lsSave } from '../lib.js';
 
 export function useSync({
-  library, completionMap, revisitIds, confusedIds, starredIds, progressMap,
-  setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap,
+  library, completionMap, revisitIds, confusedIds, starredIds, progressMap, highlights,
+  setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap, setHighlights,
   setMergeCandidate,
   userRef,
   DEMO_DATA,
@@ -25,6 +25,7 @@ export function useSync({
       confused_ids: lsLoad(KEYS.confused, []),
       starred_ids: lsLoad(KEYS.starred, []),
       progress_map: lsLoad(KEYS.progress, {}),
+      highlights: lsLoad(KEYS.highlights, []),
       updated_at: new Date().toISOString()
     });
     if (error) console.error("syncNow error", error.message);
@@ -41,6 +42,7 @@ export function useSync({
     if (data.confused_ids) { setConfusedIds(data.confused_ids); lsSave(KEYS.confused, data.confused_ids); }
     if (data.starred_ids) { setStarredIds(data.starred_ids); lsSave(KEYS.starred, data.starred_ids); }
     if (data.progress_map) { setProgressMap(data.progress_map); lsSave(KEYS.progress, data.progress_map); }
+    if (data.highlights) { setHighlights(data.highlights); lsSave(KEYS.highlights, data.highlights); }
     // Small delay before re-enabling sync to let React batch the state updates
     setTimeout(() => { cloudSyncEnabled.current = true; }, 600);
   }, [setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap]);
@@ -93,6 +95,7 @@ export function useSync({
         confused_ids: confusedIds,
         starred_ids: starredIds,
         progress_map: progressMap,
+        highlights,
         updated_at: new Date().toISOString()
       });
       if (error) {
@@ -107,7 +110,7 @@ export function useSync({
       }
     }, 2000);
     return () => clearTimeout(syncTimerRef.current);
-  }, [library, completionMap, revisitIds, confusedIds, starredIds, progressMap]);
+  }, [library, completionMap, revisitIds, confusedIds, starredIds, progressMap, highlights]);
 
   // Online/offline event listeners for retry-on-reconnect
   useEffect(() => {

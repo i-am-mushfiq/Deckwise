@@ -22,11 +22,13 @@ import { LibraryEditor } from "./components/library/LibraryEditor.jsx";
 import { DirectoryNode } from "./components/library/DirectoryNode.jsx";
 import { PromptContent } from "./components/ai/PromptContent.jsx";
 import { PromptModal } from "./components/ai/PromptModal.jsx";
+import { HighlightsModal } from "./components/HighlightsModal.jsx";
 
 export default function App(){
   const[ready,setReady]=useState(false);
   const[library,setLibrary]=useState(null);
   const[completionMap,setCompletionMap]=useState({});
+
   const[revisitIds,setRevisitIds]=useState([]);
   const[confusedIds,setConfusedIds]=useState([]);
   const[starredIds,setStarredIds]=useState([]);
@@ -41,6 +43,8 @@ export default function App(){
   const[sidebarOpen,setSidebarOpen]=useState(false);
   const[themeName,setThemeName]=useState(()=>{try{return JSON.parse(localStorage.getItem("sl-theme"))||"autumn";}catch{return"autumn";}});
   const[cardHistory,setCardHistory]=useState([]);
+  const[highlights,setHighlights]=useState(()=>lsLoad(KEYS.highlights,[]));
+  const[showHighlights,setShowHighlights]=useState(false);
 
   // ── Auth state ────────────────────────────────────────────────────────────────
   const[user,setUser]=useState(null);
@@ -53,8 +57,8 @@ export default function App(){
   const { aiUsage, handleUsageUpdate, initAiUsage } = useAiUsage();
 
   const { syncStatus, syncNow, cloudSyncEnabled, applyCloudData, loadCloudData } = useSync({
-    library, completionMap, revisitIds, confusedIds, starredIds, progressMap,
-    setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap,
+    library, completionMap, revisitIds, confusedIds, starredIds, progressMap, highlights,
+    setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap, setHighlights,
     setMergeCandidate,
     userRef,
     DEMO_DATA,
@@ -82,6 +86,8 @@ export default function App(){
     lsSave(KEYS.starred,[]);
     lsSave(KEYS.progress,{});
     lsSave(KEYS.aiUsage,{date:today,count:0});
+    setHighlights([]);
+    lsSave(KEYS.highlights,[]);
     if(userId)localStorage.removeItem(`sl-synced-${userId}`);
   },[]);
 
@@ -222,6 +228,20 @@ export default function App(){
     setStarredIds(next);lsSave(KEYS.starred,next);
   },[starredIds]);
 
+  const addHighlight=useCallback(({text,cardId,cardTitle,topicTitle})=>{
+    // Deduplicate: don't save the exact same text for the same card twice
+    const isDupe=highlights.some(h=>h.cardId===cardId&&h.text===text);
+    if(isDupe)return;
+    const hl={id:uid(),cardId,cardTitle,topicTitle,text,createdAt:Date.now()};
+    const next=[...highlights,hl];
+    setHighlights(next);lsSave(KEYS.highlights,next);
+  },[highlights]);
+
+  const removeHighlight=useCallback((id)=>{
+    const next=highlights.filter(h=>h.id!==id);
+    setHighlights(next);lsSave(KEYS.highlights,next);
+  },[highlights]);
+
   const handleReset=()=>{
     hap.error();
     setCompletionMap({});setRevisitIds([]);setConfusedIds([]);setProgressMap({});
@@ -317,7 +337,7 @@ export default function App(){
           </div>
           <ProgressBar current={cardIndex} total={activeQueue.length} revisitCount={revisitIds.filter(id=>activeQueue.some(c=>c.id===id)).length} confusedCount={confusedIds.filter(id=>activeQueue.some(c=>c.id===id)).length}/>
           <div style={{position:"relative",minHeight:500,marginTop:20}}>
-            {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onConfused={()=>toggleConfused(c.id)} starred={starredIds.includes(c.id)} onStarred={()=>toggleStarred(c.id)} onSwipe={advance}/>;}).filter(Boolean)}
+            {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onConfused={()=>toggleConfused(c.id)} starred={starredIds.includes(c.id)} onStarred={()=>toggleStarred(c.id)} onSwipe={advance} highlights={highlights} onHighlight={addHighlight}/>;}).filter(Boolean)}
           </div>
           <ActionBar onLeft={()=>advance("left")} onRight={()=>advance("right")} onBack={goBack} canBack={cardHistory.length>0}/>
           <div style={{textAlign:"center",fontSize:12,color:S.faint,marginTop:8}}>Drag or tap · progress saved</div>
@@ -332,8 +352,9 @@ export default function App(){
 
       {showEditor&&library&&<LibraryEditor library={library} onSave={saveLibrary} onClose={()=>setShowEditor(false)}/>}
       {showQuickGenerate&&<PromptModal onClose={()=>setShowQuickGenerate(false)} onImport={handleDirectImport} aiUsage={aiUsage.count} aiLimit={AI_TIERS.free.dailyLimit} onUsageUpdate={handleUsageUpdate}/>}
-      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport} user={user} onSignIn={()=>{setSidebarOpen(false);setShowAuth(true);}} onSignOut={signOut} syncStatus={syncStatus} aiUsage={aiUsage.count} aiLimit={AI_TIERS.free.dailyLimit}/>
+      <Sidebar open={sidebarOpen} onClose={()=>setSidebarOpen(false)} themeName={themeName} onTheme={switchTheme} library={library||{id:"root",type:"directory",children:[]}} onAddDeck={handleDirectImport} user={user} onSignIn={()=>{setSidebarOpen(false);setShowAuth(true);}} onSignOut={signOut} syncStatus={syncStatus} aiUsage={aiUsage.count} aiLimit={AI_TIERS.free.dailyLimit} highlightCount={highlights.length} onShowHighlights={()=>setShowHighlights(true)}/>
       {showAuth&&<AuthModal onClose={()=>setShowAuth(false)}/>}
+      {showHighlights&&<HighlightsModal highlights={highlights} onRemove={removeHighlight} onClose={()=>setShowHighlights(false)}/>}
       {mergeCandidate&&<MergeModal onKeepLocal={handleKeepLocal} onUseCloud={handleUseCloud}/>}
     </div>
   );
