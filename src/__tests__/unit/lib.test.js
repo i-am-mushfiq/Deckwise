@@ -12,6 +12,8 @@ import {
   findAndUpdate,
   findAndDelete,
   insertInto,
+  validateTopicImport,
+  normalizeTopicImport,
   KEYS,
   lsLoad,
   lsSave,
@@ -284,6 +286,153 @@ describe('insertInto', () => {
     const before = JSON.stringify(root);
     insertInto(root, 'root', newTopic);
     expect(JSON.stringify(root)).toBe(before);
+  });
+});
+
+// ── validateTopicImport ───────────────────────────────────────────────────────
+describe('validateTopicImport', () => {
+  const good = {
+    title: 'Biology',
+    cards: [
+      { title: 'Cell', body: 'The basic unit of life.' },
+      { title: 'DNA',  body: 'Deoxyribonucleic acid.' },
+    ],
+  };
+
+  it('returns null for a minimal valid topic', () => {
+    expect(validateTopicImport(good)).toBeNull();
+  });
+
+  it('accepts optional fields being present without issue', () => {
+    const withExtras = { ...good, cards: [{ ...good.cards[0], context: 'ctx', tags: ['a'], difficulty: 2 }] };
+    expect(validateTopicImport(withExtras)).toBeNull();
+  });
+
+  it('returns an error string for null', () => {
+    expect(validateTopicImport(null)).toBeTypeOf('string');
+  });
+
+  it('returns an error for an array at root', () => {
+    expect(validateTopicImport([good])).toBeTypeOf('string');
+  });
+
+  it('returns an error for a plain string', () => {
+    expect(validateTopicImport('Biology')).toBeTypeOf('string');
+  });
+
+  it('returns an error when title is missing', () => {
+    expect(validateTopicImport({ cards: good.cards })).toBeTypeOf('string');
+  });
+
+  it('returns an error when title is only whitespace', () => {
+    expect(validateTopicImport({ ...good, title: '   ' })).toBeTypeOf('string');
+  });
+
+  it('returns an error when cards is an object (not array)', () => {
+    expect(validateTopicImport({ title: 'T', cards: {} })).toBeTypeOf('string');
+  });
+
+  it('returns an error for an empty cards array', () => {
+    expect(validateTopicImport({ title: 'T', cards: [] })).toBeTypeOf('string');
+  });
+
+  it('returns an error when a card is missing title', () => {
+    expect(validateTopicImport({ title: 'T', cards: [{ body: 'x' }] })).toBeTypeOf('string');
+  });
+
+  it('returns an error when a card has an empty title', () => {
+    expect(validateTopicImport({ title: 'T', cards: [{ title: '', body: 'x' }] })).toBeTypeOf('string');
+  });
+
+  it('returns an error when a card is missing body', () => {
+    expect(validateTopicImport({ title: 'T', cards: [{ title: 'X' }] })).toBeTypeOf('string');
+  });
+
+  it('returns an error when a card body is empty', () => {
+    expect(validateTopicImport({ title: 'T', cards: [{ title: 'X', body: '' }] })).toBeTypeOf('string');
+  });
+
+  it('returns an error when a card is not an object', () => {
+    expect(validateTopicImport({ title: 'T', cards: ['oops'] })).toBeTypeOf('string');
+  });
+});
+
+// ── normalizeTopicImport ──────────────────────────────────────────────────────
+describe('normalizeTopicImport', () => {
+  const raw = {
+    title: '  Physics  ',
+    cards: [
+      { title: '  Force  ', body: '  F = ma  ', difficulty: 2, tags: ['mechanics', 123, ''], context: ' deep ' },
+      { title: 'Energy', body: 'Capacity to do work.' },
+    ],
+  };
+
+  it('trims whitespace from topic title', () => {
+    expect(normalizeTopicImport(raw).title).toBe('Physics');
+  });
+
+  it('sets type to "topic"', () => {
+    expect(normalizeTopicImport(raw).type).toBe('topic');
+  });
+
+  it('sets path to an empty array', () => {
+    expect(normalizeTopicImport(raw).path).toEqual([]);
+  });
+
+  it('trims card title and body', () => {
+    const c = normalizeTopicImport(raw).cards[0];
+    expect(c.title).toBe('Force');
+    expect(c.body).toBe('F = ma');
+  });
+
+  it('trims card context', () => {
+    expect(normalizeTopicImport(raw).cards[0].context).toBe('deep');
+  });
+
+  it('assigns sequential 1-based order values', () => {
+    const cards = normalizeTopicImport(raw).cards;
+    expect(cards[0].order).toBe(1);
+    expect(cards[1].order).toBe(2);
+  });
+
+  it('preserves a valid difficulty value', () => {
+    expect(normalizeTopicImport(raw).cards[0].difficulty).toBe(2);
+  });
+
+  it('defaults invalid/missing difficulty to 1', () => {
+    expect(normalizeTopicImport(raw).cards[1].difficulty).toBe(1);
+  });
+
+  it('keeps only non-empty string tags and drops other types', () => {
+    expect(normalizeTopicImport(raw).cards[0].tags).toEqual(['mechanics']);
+  });
+
+  it('defaults context to empty string when absent', () => {
+    expect(normalizeTopicImport(raw).cards[1].context).toBe('');
+  });
+
+  it('defaults tags to empty array when absent', () => {
+    expect(normalizeTopicImport(raw).cards[1].tags).toEqual([]);
+  });
+
+  it('generates a string id when none is provided', () => {
+    const result = normalizeTopicImport(raw);
+    expect(typeof result.id).toBe('string');
+    expect(result.id.length).toBeGreaterThan(0);
+  });
+
+  it('preserves an explicit topic id', () => {
+    expect(normalizeTopicImport({ ...raw, id: 'my-id' }).id).toBe('my-id');
+  });
+
+  it('generates unique card ids when cards have none', () => {
+    const { cards } = normalizeTopicImport(raw);
+    expect(cards[0].id).not.toBe(cards[1].id);
+  });
+
+  it('preserves explicit card ids', () => {
+    const withId = { ...raw, cards: [{ ...raw.cards[0], id: 'c-fixed' }, raw.cards[1]] };
+    expect(normalizeTopicImport(withId).cards[0].id).toBe('c-fixed');
   });
 });
 
