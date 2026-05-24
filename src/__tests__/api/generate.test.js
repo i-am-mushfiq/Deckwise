@@ -15,9 +15,11 @@ const req = (method, body = {}) => ({ method, body });
 
 /** Create a mock `res` object that captures status/body like Express/Vercel */
 const mockRes = () => {
-  const r = { _status: null, _body: null };
-  r.status = (code) => { r._status = code; return r; };
-  r.json   = (body) => { r._body  = body; return r; };
+  const r = { _status: null, _body: null, _headers: {} };
+  r.status    = (code)      => { r._status = code; return r; };
+  r.json      = (body)      => { r._body   = body; return r; };
+  r.end       = ()          => r;                           // for 204 / OPTIONS
+  r.setHeader = (key, val)  => { r._headers[key] = val; }; // for CORS headers
   return r;
 };
 
@@ -58,6 +60,19 @@ afterEach(() => {
 // ── Method guard ──────────────────────────────────────────────────────────────
 
 describe('method guard', () => {
+  it('returns 204 for OPTIONS requests (CORS preflight)', async () => {
+    const res = mockRes();
+    await handler(req('OPTIONS'), res);
+    expect(res._status).toBe(204);
+  });
+
+  it('sets CORS headers on every response', async () => {
+    const res = mockRes();
+    await handler(req('OPTIONS'), res);
+    expect(res._headers['Access-Control-Allow-Origin']).toBeDefined();
+    expect(res._headers['Access-Control-Allow-Methods']).toMatch(/POST/);
+  });
+
   it('returns 405 for GET requests', async () => {
     const res = mockRes();
     await handler(req('GET'), res);

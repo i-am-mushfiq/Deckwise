@@ -6,6 +6,18 @@ const AI_TIERS = {
   // pro:  { dailyLimit: Infinity, label: 'Pro' },
 };
 
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Set ALLOWED_ORIGIN in Vercel env vars to lock down the origin in production
+// (e.g. "https://deckwise.app"). Omit it (or set to "*") during development.
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+
+function setCorsHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // cache preflight for 24 h
+}
+
 function getTodayGMT() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -21,6 +33,11 @@ const supabaseAdmin = (supabaseUrl && serviceKey)
   : null;
 
 export default async function handler(req, res) {
+  setCorsHeaders(res);
+
+  // Preflight — browsers send OPTIONS before the actual POST
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

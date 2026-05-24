@@ -15,6 +15,8 @@ import {
   validateTopicImport,
   normalizeTopicImport,
   KEYS,
+  SCHEMA_VERSION,
+  migrateLocalStorage,
   lsLoad,
   lsSave,
 } from '../../lib.js';
@@ -439,6 +441,7 @@ describe('normalizeTopicImport', () => {
 // ── KEYS ──────────────────────────────────────────────────────────────────────
 describe('KEYS', () => {
   it('contains all expected keys with their localStorage key names', () => {
+    expect(KEYS.version).toBe('sl-v');
     expect(KEYS.completion).toBe('sl-comp');
     expect(KEYS.revisit).toBe('sl-rev');
     expect(KEYS.confused).toBe('sl-conf');
@@ -449,8 +452,49 @@ describe('KEYS', () => {
     expect(KEYS.highlights).toBe('sl-hl');
   });
 
-  it('has exactly eight keys', () => {
-    expect(Object.keys(KEYS)).toHaveLength(8);
+  it('has exactly nine keys', () => {
+    expect(Object.keys(KEYS)).toHaveLength(9);
+  });
+});
+
+// ── SCHEMA_VERSION / migrateLocalStorage ─────────────────────────────────────
+describe('SCHEMA_VERSION', () => {
+  it('is a positive integer', () => {
+    expect(Number.isInteger(SCHEMA_VERSION)).toBe(true);
+    expect(SCHEMA_VERSION).toBeGreaterThan(0);
+  });
+});
+
+describe('migrateLocalStorage', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('writes SCHEMA_VERSION to localStorage on first boot (no version stored)', () => {
+    migrateLocalStorage();
+    expect(lsLoad(KEYS.version, 0)).toBe(SCHEMA_VERSION);
+  });
+
+  it('returns 0 when no version was previously stored', () => {
+    expect(migrateLocalStorage()).toBe(0);
+  });
+
+  it('is idempotent — calling twice does not change the stored version', () => {
+    migrateLocalStorage();
+    migrateLocalStorage();
+    expect(lsLoad(KEYS.version, 0)).toBe(SCHEMA_VERSION);
+  });
+
+  it('is a no-op (returns stored value) when already up to date', () => {
+    lsSave(KEYS.version, SCHEMA_VERSION);
+    const returned = migrateLocalStorage();
+    expect(returned).toBe(SCHEMA_VERSION);
+    expect(lsLoad(KEYS.version, 0)).toBe(SCHEMA_VERSION);
+  });
+
+  it('is a no-op when stored version is higher than SCHEMA_VERSION', () => {
+    lsSave(KEYS.version, SCHEMA_VERSION + 99);
+    migrateLocalStorage();
+    // version should not be downgraded
+    expect(lsLoad(KEYS.version, 0)).toBe(SCHEMA_VERSION + 99);
   });
 });
 

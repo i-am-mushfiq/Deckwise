@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
-import { uid, flattenTopics, rebuildPaths, insertInto, KEYS, lsLoad, lsSave } from "./lib.js";
+import { uid, flattenTopics, rebuildPaths, insertInto, KEYS, lsLoad, lsSave, migrateLocalStorage } from "./lib.js";
 import { S, F, THEMES } from "./theme.js";
 import { hap } from "./audio.js";
 import { DEMO_DATA } from "./constants.js";
@@ -123,6 +123,7 @@ export default function App(){
 
   // ── Load from localStorage on boot ──────────────────────────────────────────
   useEffect(()=>{
+    migrateLocalStorage(); // run any pending schema migrations before reading data
     setCompletionMap(lsLoad(KEYS.completion,{}));
     setRevisitIds(lsLoad(KEYS.revisit,[]));
     setConfusedIds(lsLoad(KEYS.confused,[]));
@@ -160,7 +161,19 @@ export default function App(){
 
   const handleDirectImport=useCallback((data)=>{
     setLibrary(prev=>{
-      const updated=rebuildPaths(insertInto(prev,"root",{...data,id:data.id||`topic-${uid()}`,type:"topic",path:data.path||[]}));
+      // Always generate fresh IDs for every inserted topic and its cards.
+      // This ensures community decks, re-imports, and AI-generated decks always
+      // start at 0% — no stale completionMap entries from a previous copy can
+      // bleed into the freshly added deck.
+      const freshTopic={
+        ...data,
+        id:`topic-${uid()}`,
+        sourceId:data.id||null, // original ID kept for "already added" detection in Sidebar
+        type:"topic",
+        path:[],
+        cards:(data.cards||[]).map((c,i)=>({...c,id:`card-${uid()}`,order:i+1})),
+      };
+      const updated=rebuildPaths(insertInto(prev,"root",freshTopic));
       lsSave(KEYS.library,updated);
       return updated;
     });

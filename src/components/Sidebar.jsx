@@ -13,7 +13,11 @@ export function Sidebar({open,onClose,themeName,onTheme,library,onAddDeck,user,o
     error:{text:"Sync failed",color:S.danger,dot:S.danger,check:false},
     offline:{text:"Offline — saved locally",color:"#f59e0b",dot:"#f59e0b",check:false},
   }[syncStatus]||{text:"",color:S.faint,dot:S.faint,check:false};
-  const addedIds=new Set(flattenTopics(library||{id:"root",type:"directory",children:[]}).map(t=>t.id));
+  // A deck is "added" if the library contains a topic whose id OR sourceId matches
+  // the community deck's id. sourceId is stamped on topics by handleDirectImport
+  // so that "already added" detection survives the fresh-ID assignment.
+  const libraryTopics=flattenTopics(library||{id:"root",type:"directory",children:[]});
+  const addedIds=new Set([...libraryTopics.map(t=>t.id),...libraryTopics.map(t=>t.sourceId).filter(Boolean)]);
   return(
     <>
       {/* Backdrop */}

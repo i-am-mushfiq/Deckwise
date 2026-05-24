@@ -50,6 +50,7 @@ export function insertInto(node, pid, child) {
 
 // ── STORAGE KEYS ──────────────────────────────────────────────────────────────
 export const KEYS = {
+  version:    "sl-v",        // schema version — bumped whenever the shape changes
   completion: "sl-comp",
   revisit:    "sl-rev",
   confused:   "sl-conf",
@@ -59,6 +60,34 @@ export const KEYS = {
   aiUsage:    "sl-ai-usage",
   highlights: "sl-hl",
 };
+
+// ── SCHEMA VERSIONING ─────────────────────────────────────────────────────────
+
+/**
+ * Increment this whenever the shape of any stored value changes.
+ * Add the corresponding migration block inside migrateLocalStorage.
+ */
+export const SCHEMA_VERSION = 1;
+
+/**
+ * Runs any outstanding localStorage migrations on app boot.
+ * Each migration is idempotent and guarded by a version check.
+ * Returns the version that was stored before migration (0 = first ever boot).
+ */
+export function migrateLocalStorage() {
+  const stored = lsLoad(KEYS.version, 0);
+  if (stored >= SCHEMA_VERSION) return stored;
+
+  // ── v0 → v1: baseline — no data transformation needed, just stamp the version
+  // Future migrations go here:
+  // if (stored < 2) {
+  //   const lib = lsLoad(KEYS.library, null);
+  //   if (lib) { /* reshape lib */ lsSave(KEYS.library, reshaped); }
+  // }
+
+  lsSave(KEYS.version, SCHEMA_VERSION);
+  return stored;
+}
 
 // ── JSON IMPORT VALIDATION & NORMALISATION ────────────────────────────────────
 
