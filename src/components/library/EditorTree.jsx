@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ChevronRight, FileText, Folder, Download } from 'lucide-react';
+import { X, Trash2, ChevronRight, FileText, Folder, Download } from 'lucide-react';
 import { S, F } from '../../theme.js';
 import { hap } from '../../audio.js';
 import { SpotifyBtn } from '../ui/SpotifyBtn.jsx';
@@ -14,7 +14,7 @@ export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDel
       style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0,touchAction:"manipulation"}}
       onMouseEnter={e=>e.currentTarget.style.color=S.danger}
       onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
-      <X size={16}/>
+      <Trash2 size={15}/>
     </button>
   );
   if(node.type==="topic"){
