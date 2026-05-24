@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { X, ChevronRight, FileText, Folder } from 'lucide-react';
+import { X, ChevronRight, FileText, Folder, Download } from 'lucide-react';
 import { S, F } from '../../theme.js';
 import { hap } from '../../audio.js';
 import { SpotifyBtn } from '../ui/SpotifyBtn.jsx';
 
-export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDelete,onCards}){
+export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDelete,onCards,onExport}){
   const[open,setOpen]=useState(true);
   // Cap indent so deeply-nested trees don't overflow phone screens
   const pad=Math.min(depth*16, 48);
@@ -33,9 +33,14 @@ export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDel
           </div>
         </div>
         {/* Action row — sits below title so buttons always have enough room */}
-        <div style={{display:"flex",gap:6,marginTop:8,paddingLeft:42,alignItems:"center"}}>
+        <div style={{display:"flex",gap:6,marginTop:8,paddingLeft:42,alignItems:"center",flexWrap:"wrap"}}>
           <SpotifyBtn size="sm" variant="ghost" onClick={()=>onCards(node)}>Cards</SpotifyBtn>
           <SpotifyBtn size="sm" variant="ghost" onClick={()=>onEdit(node)}>Rename</SpotifyBtn>
+          {onExport&&(
+            <SpotifyBtn size="sm" variant="ghost" onClick={()=>onExport(node)}>
+              <span style={{display:"inline-flex",alignItems:"center",gap:4}}><Download size={11}/>Export</span>
+            </SpotifyBtn>
+          )}
           <DelBtn id={node.id}/>
         </div>
       </div>
@@ -56,7 +61,7 @@ export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDel
         </>}
       </div>
       {open&&<>
-        {node.children?.map(c=><EditorTree key={c.id} node={c} depth={depth+1} onAddDir={onAddDir} onAddTopic={onAddTopic} onEdit={onEdit} onDelete={onDelete} onCards={onCards}/>)}
+        {node.children?.map(c=><EditorTree key={c.id} node={c} depth={depth+1} onAddDir={onAddDir} onAddTopic={onAddTopic} onEdit={onEdit} onDelete={onDelete} onCards={onCards} onExport={onExport}/>)}
         <div style={{display:"flex",gap:8,marginLeft:Math.min(pad+38,80),marginTop:4,marginBottom:8,flexWrap:"wrap"}}>
           <SpotifyBtn size="sm" variant="ghost" onClick={()=>onAddDir(node.id)}>+ Folder</SpotifyBtn>
           <SpotifyBtn size="sm" variant="ghost" onClick={()=>onAddTopic(node.id)}>+ Topic</SpotifyBtn>

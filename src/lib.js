@@ -89,6 +89,50 @@ export function migrateLocalStorage() {
   return stored;
 }
 
+// ── JSON EXPORT ───────────────────────────────────────────────────────────────
+
+/**
+ * Serialises `data` as pretty-printed JSON and triggers a browser download.
+ * Works in all modern browsers; no dependencies.
+ */
+export function downloadJson(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Converts a topic node into a portable export object.
+ * Strips internal fields (id, order, path, sourceId) so the file can be
+ * re-imported without carrying stale IDs or progress data.
+ */
+export function exportTopicData(topic) {
+  return {
+    title: topic.title,
+    cards: topic.cards.map(({ title, body, context, tags, difficulty }) => ({
+      title,
+      body,
+      context: context || '',
+      tags:    Array.isArray(tags) ? tags : [],
+      difficulty: [1, 2, 3].includes(difficulty) ? difficulty : 1,
+    })),
+  };
+}
+
+/**
+ * Derives a safe filename from an arbitrary string.
+ * e.g. "Stoic Philosophy" → "stoic-philosophy.json"
+ */
+export function toJsonFilename(title) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '') + '.json';
+}
+
 // ── JSON IMPORT VALIDATION & NORMALISATION ────────────────────────────────────
 
 /**
