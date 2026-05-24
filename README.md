@@ -367,7 +367,7 @@ Your selected theme persists across sessions via localStorage.
 - [x] Offline-first architecture — localStorage primary, cloud best-effort, retry on reconnect
 - [x] AI rate limiting — 1000 cards/day (free tier), server-enforced, daily usage bar in sidebar
 - [x] Clean sign-out — full local state reset on sign-out
-- [ ] Export progress as JSON backup
+- [x] Export progress as JSON backup
 - [ ] Spaced repetition scheduling for the review queue
 - [ ] Card search
 - [ ] Share topics as links
