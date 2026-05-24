@@ -316,7 +316,7 @@ export default function App(){
             <div style={{flex:1,fontSize:15,fontWeight:700,color:S.white,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeTopic?.title}</div>
           </div>
           <ProgressBar current={cardIndex} total={activeQueue.length} revisitCount={revisitIds.filter(id=>activeQueue.some(c=>c.id===id)).length} confusedCount={confusedIds.filter(id=>activeQueue.some(c=>c.id===id)).length}/>
-          <div style={{position:"relative",height:500,marginTop:20}}>
+          <div style={{position:"relative",minHeight:500,marginTop:20}}>
             {[2,1,0].map(offset=>{const c=activeQueue[cardIndex+offset];if(!c)return null;return <DraggableCard key={`${c.id}-${cardIndex}`} card={c} isTop={offset===0} stackIndex={offset} confused={confusedIds.includes(c.id)} onConfused={()=>toggleConfused(c.id)} starred={starredIds.includes(c.id)} onStarred={()=>toggleStarred(c.id)} onSwipe={advance}/>;}).filter(Boolean)}
           </div>
           <ActionBar onLeft={()=>advance("left")} onRight={()=>advance("right")} onBack={goBack} canBack={cardHistory.length>0}/>
