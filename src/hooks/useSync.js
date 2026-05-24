@@ -45,7 +45,7 @@ export function useSync({
     if (data.highlights) { setHighlights(data.highlights); lsSave(KEYS.highlights, data.highlights); }
     // Small delay before re-enabling sync to let React batch the state updates
     setTimeout(() => { cloudSyncEnabled.current = true; }, 600);
-  }, [setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap]);
+  }, [setLibrary, setCompletionMap, setRevisitIds, setConfusedIds, setStarredIds, setProgressMap, setHighlights]);
 
   const loadCloudData = useCallback(async (userId) => {
     if (!supabase) return;
@@ -70,7 +70,13 @@ export function useSync({
       const hasLocalData = localLib && JSON.stringify(localLib) !== JSON.stringify(DEMO_DATA);
       const hasLocalProgress = Object.keys(lsLoad(KEYS.completion, {})).length > 0;
       if (hasLocalData || hasLocalProgress) {
-        setMergeCandidate(data); // Show merge choice modal
+        // Merge highlights from both sides before presenting the conflict modal so
+        // neither path loses highlights regardless of which side the user picks.
+        const localHls = lsLoad(KEYS.highlights, []);
+        const cloudHls = Array.isArray(data.highlights) ? data.highlights : [];
+        const cloudIds = new Set(cloudHls.map(h => h.id));
+        const merged = [...cloudHls, ...localHls.filter(h => !cloudIds.has(h.id))];
+        setMergeCandidate({ ...data, highlights: merged });
       } else {
         applyCloudData(data);
         lsSave(`sl-synced-${userId}`, true);
