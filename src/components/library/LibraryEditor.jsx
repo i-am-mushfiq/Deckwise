@@ -24,10 +24,12 @@ export function LibraryEditor({library,onSave,onClose}){
     <>
       <Modal title="Your Library" onClose={onClose} width={640}>
         <EditorTree node={tree} isRoot onAddDir={id=>setModal({type:"dir",pid:id})} onAddTopic={id=>setModal({type:"topic",pid:id})} onEdit={n=>setModal({type:n.type==="directory"?"dir":"topic",node:n})} onDelete={deleteNode} onCards={n=>setModal({type:"cards",node:n})}/>
-        <div style={{display:"flex",gap:10,marginTop:24,paddingTop:16,borderTop:`1px solid ${S.border}`,flexWrap:"wrap"}}>
-          <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"prompt"})}>Generate prompt</SpotifyBtn>
-          <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"import"})}>Import JSON</SpotifyBtn>
-          <SpotifyBtn onClick={()=>{hap.success();onSave(tree);onClose();}}>Save library</SpotifyBtn>
+        <div style={{marginTop:24,paddingTop:16,borderTop:`1px solid ${S.border}`}}>
+          <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+            <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"prompt"})}>Generate prompt</SpotifyBtn>
+            <SpotifyBtn variant="ghost" onClick={()=>setModal({type:"import"})}>Import JSON</SpotifyBtn>
+          </div>
+          <SpotifyBtn fullWidth onClick={()=>{hap.success();onSave(tree);onClose();}}>Save library</SpotifyBtn>
         </div>
       </Modal>
       {modal?.type==="dir"&&!modal.node&&<DirectoryModal onSave={t=>addDir(modal.pid,t)} onClose={()=>setModal(null)}/>}

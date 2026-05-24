@@ -6,10 +6,12 @@ import { SpotifyBtn } from '../ui/SpotifyBtn.jsx';
 
 export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDelete,onCards}){
   const[open,setOpen]=useState(true);
-  const pad=depth*20;
-  const DelBtn=({id})=>(
-    <button onClick={e=>{e.stopPropagation();hap.error();onDelete(id);}}
-      style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0}}
+  // Cap indent so deeply-nested trees don't overflow phone screens
+  const pad=Math.min(depth*16, 48);
+  const DelBtn=({id,stopProp=false})=>(
+    <button onClick={e=>{if(stopProp)e.stopPropagation();hap.error();onDelete(id);}}
+      aria-label="Delete"
+      style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",flexShrink:0,touchAction:"manipulation"}}
       onMouseEnter={e=>e.currentTarget.style.color=S.danger}
       onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
       <X size={16}/>
@@ -17,39 +19,45 @@ export function EditorTree({node,depth=0,isRoot,onAddDir,onAddTopic,onEdit,onDel
   );
   if(node.type==="topic"){
     return(
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",marginLeft:pad,marginBottom:2,borderRadius:4,transition:"background 0.15s"}}
+      <div style={{padding:"10px 10px 8px",marginLeft:pad,marginBottom:2,borderRadius:6,transition:"background 0.15s"}}
         onMouseEnter={e=>e.currentTarget.style.background=S.card}
         onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-        <div style={{width:36,height:36,borderRadius:4,background:S.card,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-          <FileText size={16} color={S.subdued}/>
+        {/* Title row */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:34,height:34,borderRadius:4,background:S.card,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <FileText size={15} color={S.subdued}/>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{node.title}</div>
+            <div style={{fontSize:12,color:S.subdued,fontFamily:F}}>{node.cards.length} card{node.cards.length!==1?"s":""}</div>
+          </div>
         </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F}}>{node.title}</div>
-          <div style={{fontSize:12,color:S.subdued,fontFamily:F}}>{node.cards.length} cards</div>
+        {/* Action row — sits below title so buttons always have enough room */}
+        <div style={{display:"flex",gap:6,marginTop:8,paddingLeft:42,alignItems:"center"}}>
+          <SpotifyBtn size="sm" variant="ghost" onClick={()=>onCards(node)}>Cards</SpotifyBtn>
+          <SpotifyBtn size="sm" variant="ghost" onClick={()=>onEdit(node)}>Rename</SpotifyBtn>
+          <DelBtn id={node.id}/>
         </div>
-        <SpotifyBtn size="sm" variant="ghost" onClick={()=>onCards(node)}>Cards</SpotifyBtn>
-        <SpotifyBtn size="sm" variant="ghost" onClick={()=>onEdit(node)}>Rename</SpotifyBtn>
-        <DelBtn id={node.id}/>
       </div>
     );
   }
   return(
     <div style={{marginBottom:4}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",marginLeft:pad,borderRadius:4,cursor:"pointer",transition:"background 0.15s"}}
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 10px",marginLeft:pad,borderRadius:6,cursor:"pointer",transition:"background 0.15s",touchAction:"manipulation"}}
         onClick={()=>setOpen(!open)}
         onMouseEnter={e=>e.currentTarget.style.background=S.card}
         onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
         <ChevronRight size={14} color={S.subdued} style={{transition:"transform 0.2s",transform:open?"rotate(90deg)":"rotate(0deg)",flexShrink:0}}/>
         <Folder size={16} color={S.subdued} style={{flexShrink:0}}/>
-        <span style={{fontSize:14,fontWeight:700,color:S.white,flex:1,fontFamily:F}}>{node.title}</span>
+        <span style={{fontSize:14,fontWeight:700,color:S.white,flex:1,fontFamily:F,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>{node.title}</span>
         {!isRoot&&<>
           <SpotifyBtn size="sm" variant="ghost" onClick={e=>{e.stopPropagation();onEdit(node);}}>Rename</SpotifyBtn>
-          <DelBtn id={node.id}/>
+          <DelBtn id={node.id} stopProp/>
         </>}
       </div>
       {open&&<>
         {node.children?.map(c=><EditorTree key={c.id} node={c} depth={depth+1} onAddDir={onAddDir} onAddTopic={onAddTopic} onEdit={onEdit} onDelete={onDelete} onCards={onCards}/>)}
-        <div style={{display:"flex",gap:8,marginLeft:pad+36,marginTop:4,marginBottom:8}}>
+        <div style={{display:"flex",gap:8,marginLeft:Math.min(pad+38,80),marginTop:4,marginBottom:8,flexWrap:"wrap"}}>
           <SpotifyBtn size="sm" variant="ghost" onClick={()=>onAddDir(node.id)}>+ Folder</SpotifyBtn>
           <SpotifyBtn size="sm" variant="ghost" onClick={()=>onAddTopic(node.id)}>+ Topic</SpotifyBtn>
         </div>

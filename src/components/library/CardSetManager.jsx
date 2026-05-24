@@ -21,31 +21,31 @@ export function CardSetManager({topic,onSave,onClose}){
     <>
       <Modal title={topic.title} onClose={onClose} width={600}>
         <div style={{marginBottom:16}}><SpotifyBtn size="sm" onClick={()=>setEditing("new")}>+ Add card</SpotifyBtn></div>
-        <div style={{display:"flex",flexDirection:"column",gap:2,maxHeight:420,overflowY:"auto"}}>
+        <div style={{display:"flex",flexDirection:"column",gap:2,maxHeight:"min(400px,45dvh)",overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
           {cards.map((c,i)=>(
-            <div key={c.id} style={{background:S.card,borderRadius:4,padding:"12px 14px",display:"flex",gap:10,alignItems:"center",transition:"background 0.15s"}}
+            <div key={c.id} style={{background:S.card,borderRadius:4,padding:"10px 10px",display:"flex",gap:8,alignItems:"center",transition:"background 0.15s"}}
               onMouseEnter={e=>e.currentTarget.style.background=S.cardHover}
               onMouseLeave={e=>e.currentTarget.style.background=S.card}>
               <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                <button onClick={()=>move(i,-1)} disabled={i===0} style={{background:"none",border:"none",color:i===0?S.faint:S.subdued,cursor:i===0?"default":"pointer",padding:"1px 4px",lineHeight:1,display:"flex",alignItems:"center"}}
+                <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Move up" style={{background:"none",border:"none",color:i===0?S.faint:S.subdued,cursor:i===0?"default":"pointer",padding:"2px 4px",lineHeight:1,display:"flex",alignItems:"center",touchAction:"manipulation"}}
                   onMouseEnter={e=>{if(i!==0)e.currentTarget.style.color=S.white;}}
                   onMouseLeave={e=>e.currentTarget.style.color=i===0?S.faint:S.subdued}>
                   <ChevronUp size={14}/>
                 </button>
-                <button onClick={()=>move(i,1)} disabled={i===cards.length-1} style={{background:"none",border:"none",color:i===cards.length-1?S.faint:S.subdued,cursor:i===cards.length-1?"default":"pointer",padding:"1px 4px",lineHeight:1,display:"flex",alignItems:"center"}}
+                <button onClick={()=>move(i,1)} disabled={i===cards.length-1} aria-label="Move down" style={{background:"none",border:"none",color:i===cards.length-1?S.faint:S.subdued,cursor:i===cards.length-1?"default":"pointer",padding:"2px 4px",lineHeight:1,display:"flex",alignItems:"center",touchAction:"manipulation"}}
                   onMouseEnter={e=>{if(i!==cards.length-1)e.currentTarget.style.color=S.white;}}
                   onMouseLeave={e=>e.currentTarget.style.color=i===cards.length-1?S.faint:S.subdued}>
                   <ChevronDown size={14}/>
                 </button>
               </div>
-              <div style={{width:28,height:28,borderRadius:4,background:c.difficulty===1?`${S.d1}22`:c.difficulty===2?`${S.d2}22`:`${S.d3}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:c.difficulty===1?S.d1:c.difficulty===2?S.d2:S.d3,flexShrink:0}}>{c.order}</div>
+              <div style={{width:26,height:26,borderRadius:4,background:c.difficulty===1?`${S.d1}22`:c.difficulty===2?`${S.d2}22`:`${S.d3}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:c.difficulty===1?S.d1:c.difficulty===2?S.d2:S.d3,flexShrink:0}}>{c.order}</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:14,fontWeight:700,color:S.white,fontFamily:F,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.title}</div>
-                <div style={{fontSize:12,color:S.subdued,fontFamily:F,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.body}</div>
+                <div style={{fontSize:13,fontWeight:700,color:S.white,fontFamily:F,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.title}</div>
+                <div style={{fontSize:11,color:S.subdued,fontFamily:F,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.body}</div>
               </div>
-              <div style={{display:"flex",gap:6,flexShrink:0}}>
+              <div style={{display:"flex",gap:4,flexShrink:0}}>
                 <SpotifyBtn size="sm" variant="ghost" onClick={()=>setEditing(c)}>Edit</SpotifyBtn>
-                <button onClick={()=>del(c.id)} style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%"}}
+                <button onClick={()=>del(c.id)} aria-label="Delete card" style={{background:"none",border:"none",color:S.subdued,cursor:"pointer",width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",touchAction:"manipulation"}}
                   onMouseEnter={e=>e.currentTarget.style.color=S.danger}
                   onMouseLeave={e=>e.currentTarget.style.color=S.subdued}>
                   <X size={16}/>
